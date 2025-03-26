@@ -9,44 +9,100 @@ import taskImage from '../assets/tarea.png';
 const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onDeleteTask }) => {
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen && projectId) {
+      setIsLoading(true);
       fetchTasksByProjectId(projectId)
-        .then(response => setTasks(response.data))
-        .catch(error => console.error('Error fetching tasks:', error));
+        .then(response => {
+          setTasks(response.data || []);
+          setIsLoading(false);
+        })
+        .catch(error => {
+          console.error('Error fetching tasks:', error);
+          setIsLoading(false);
+          Swal.fire('Error', 'There was a problem fetching the tasks.', 'error');
+        });
     }
   }, [isOpen, projectId]);
 
   const handleCreateTask = async (taskData) => {
     try {
-      const newTask = { ...taskData, projectId };
-      const response = await createTask(newTask);
+      // Formatear los datos correctamente para el backend
+      const formattedData = {
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status || 'pending',
+        dueDate: taskData.dueDate,
+        project_id: projectId  // Aquí está el cambio principal - project_id en lugar de projectId
+      };
+
+      console.log('Sending task data to server:', formattedData);
+      
+      const response = await createTask(formattedData);
       const createdTask = response.data;
-      setTasks([...tasks, createdTask]);
-      onCreateTask();
+      
+      console.log('Task created successfully:', createdTask);
+      
+      setTasks(prevTasks => [...prevTasks, createdTask]);
+      
+      if (onCreateTask) {
+        onCreateTask();
+      }
+      
       Swal.fire('Created!', 'The task has been created successfully.', 'success');
     } catch (error) {
       console.error('Error creating task:', error);
-      Swal.fire('Error', 'There was a problem creating the task.', 'error');
+      
+      // Mensaje de error más descriptivo
+      let errorMessage = 'There was a problem creating the task.';
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      Swal.fire('Error', errorMessage, 'error');
     }
   };
 
   const handleUpdateTask = async (taskData) => {
     try {
-      const updatedTask = { ...taskData, projectId };
-      const response = await updateTask(taskData.id, updatedTask);
+      // Formatear correctamente los datos para actualización
+      const formattedData = {
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status || 'pending',
+        dueDate: taskData.dueDate,
+        project_id: projectId  // Usar project_id en lugar de projectId
+      };
+
+      console.log('Updating task with data:', formattedData);
+      
+      const response = await updateTask(taskData.id, formattedData);
       const updatedTaskFromServer = response.data;
+      
       const updatedTasks = tasks.map(task =>
         task.id === updatedTaskFromServer.id ? updatedTaskFromServer : task
       );
+      
       setTasks(updatedTasks);
-      onUpdateTask();
+      
+      if (onUpdateTask) {
+        onUpdateTask();
+      }
+      
       setSelectedTask(null);
       Swal.fire('Updated!', 'The task has been updated successfully.', 'success');
     } catch (error) {
       console.error('Error updating task:', error);
-      Swal.fire('Error', 'There was a problem updating the task.', 'error');
+      
+      // Mensaje de error más descriptivo
+      let errorMessage = 'There was a problem updating the task.';
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      Swal.fire('Error', errorMessage, 'error');
     }
   };
 
@@ -66,7 +122,11 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
           await deleteTask(taskId);
           const updatedTasks = tasks.filter(task => task.id !== taskId);
           setTasks(updatedTasks);
-          onDeleteTask();
+          
+          if (onDeleteTask) {
+            onDeleteTask();
+          }
+          
           Swal.fire(
             'Deleted!',
             'The task has been deleted.',
@@ -74,11 +134,14 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
           );
         } catch (error) {
           console.error('Error deleting task:', error);
-          Swal.fire(
-            'Error',
-            'There was a problem deleting the task.',
-            'error'
-          );
+          
+          // Mensaje de error más descriptivo
+          let errorMessage = 'There was a problem deleting the task.';
+          if (error.response && error.response.data && error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+          
+          Swal.fire('Error', errorMessage, 'error');
         }
       }
     });
@@ -105,7 +168,9 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         </div>
         <div style={styles.rightColumn}>
           <h2 style={styles.title}>Task List</h2>
-          {tasks.length > 0 ? (
+          {isLoading ? (
+            <div style={styles.loadingMessage}>Loading tasks...</div>
+          ) : tasks.length > 0 ? (
             <TaskList tasks={tasks} onEditTask={handleEditTask} onDeleteTask={handleDeleteTask} />
           ) : (
             <div style={styles.noTasksMessage}>
@@ -124,8 +189,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     width: '100%',
-    maxHeight: '80vh', // Limita la altura máxima a 80% de la altura visible
-    overflow: 'hidden', // Oculta el desbordamiento
+    maxHeight: '80vh',
+    overflow: 'hidden',
   },
   leftColumn: {
     flex: '0 0 45%',
@@ -151,6 +216,12 @@ const styles = {
     borderBottom: '1px solid #ccc',
     paddingBottom: '10px',
   },
+  loadingMessage: {
+    textAlign: 'center',
+    marginTop: '20px',
+    color: '#666',
+    fontSize: '16px',
+  }
 };
 
 export default TaskModal;
