@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import Swal from 'sweetalert2';
 import '../assets/login.css';
-import { login, register } from '../api'; // Importamos las funciones de API
 
 // Componente para el formulario de inicio de sesión
 const LoginForm = ({ username, password, setUsername, setPassword, handleSubmit }) => (
@@ -100,16 +99,32 @@ const LoginRegister = ({ onLogin }) => {
     }
 
     try {
-      let response;
-      if (isLogin) {
-        // Usar la función login importada desde api.js
-        response = await login({ username, password });
-      } else {
-        // Usar la función register importada desde api.js
-        response = await register({ username, password, name });
+      // Definir el proxy CORS y la URL del backend
+      const CORS_PROXY = 'https://thingproxy.freeboard.io/fetch/';
+      const API_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
+      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      const data = isLogin ? { username, password } : { username, password, name };
+      
+      console.log(`Intentando ${isLogin ? 'login' : 'registro'} con:`, data);
+      
+      // Usar fetch con el proxy CORS
+      const response = await fetch(CORS_PROXY + API_URL + endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': 'https://pi2-smarttask-frontend.vercel.app/'  // Añadimos el origen como header
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const token = response.data.token;
+      const result = await response.json();
+      console.log('Respuesta:', result);
+      
+      const token = result.token;
       if (token) {
         sessionStorage.setItem('token', token);
         onLogin();
@@ -122,19 +137,14 @@ const LoginRegister = ({ onLogin }) => {
           timer: 1500
         });
       } else {
-        console.error('No token received from the server');
-        Swal.fire({
-          icon: 'error',
-          title: 'Authentication Error',
-          text: 'Unable to complete authentication. Please try again.'
-        });
+        throw new Error('No token received from server');
       }
     } catch (error) {
       console.error(`Error ${isLogin ? 'logging in' : 'registering'}`, error);
       Swal.fire({
         icon: 'error',
         title: `Error ${isLogin ? 'logging in' : 'registering'}`,
-        text: error.response?.data?.message || 'An error occurred. Please try again.'
+        text: error.message || 'An error occurred. Please try again.'
       });
     }
   };
