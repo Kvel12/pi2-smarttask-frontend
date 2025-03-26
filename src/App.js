@@ -11,20 +11,20 @@ function App() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-
+  
   useEffect(() => {
     const token = sessionStorage.getItem('token');
     if (token) {
       setIsLoggedIn(true);
     }
   }, []);
-
+  
   useEffect(() => {
     if (isLoggedIn) {
       loadProjects();
     }
   }, [isLoggedIn]);
-
+  
   const loadProjects = async () => {
     try {
       const response = await fetchProjects();
@@ -33,7 +33,7 @@ function App() {
       console.error('Error loading projects', error);
     }
   };
-
+  
   const loadTasks = async (projectId) => {
     try {
       const response = await fetchTasks(projectId);
@@ -42,11 +42,11 @@ function App() {
       console.error('Error loading tasks', error);
     }
   };
-
+  
   const handleLogin = () => {
     setIsLoggedIn(true);
   };
-
+  
   const PrivateRoute = ({ children, ...rest }) => {
     return (
       <Route
@@ -66,7 +66,7 @@ function App() {
       />
     );
   };
-
+  
   return (
     <Router>
       <div>
@@ -74,7 +74,7 @@ function App() {
           <Route path="/login">
             {isLoggedIn ? <Redirect to="/" /> : <LoginRegister onLogin={handleLogin} />}
           </Route>
-          <PrivateRoute path="/">
+          <PrivateRoute exact path="/">
             <div>
               <ProjectList
                 projects={projects}
