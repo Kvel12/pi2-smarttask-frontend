@@ -24,7 +24,6 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         })
         .catch(error => {
           console.error('Error fetching tasks:', error);
-          console.error('Error response:', error.response ? error.response.data : 'No response data');
           setIsLoading(false);
           Swal.fire('Error', 'There was a problem fetching the tasks.', 'error');
         });
@@ -33,47 +32,24 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
 
   const handleCreateTask = async (taskData) => {
     try {
-      // Probar diferentes formatos para encontrar lo que espera el backend
-      // Opción 1: Usando project_id
-      const payload1 = {
+      // Mapear los campos correctamente según lo que espera el backend
+      const currentDate = new Date().toISOString();
+      
+      const formattedData = {
         title: taskData.title,
         description: taskData.description,
         status: taskData.status || 'pending',
-        dueDate: taskData.dueDate,
-        project_id: projectId
+        creation_date: currentDate,        // Campo requerido por el backend
+        completion_date: taskData.dueDate, // El backend espera completion_date, no dueDate
+        projectId: projectId               // Usar projectId, no project_id
       };
+
+      console.log('Sending task data to server:', formattedData);
       
-      // Opción 2: Usando projectId
-      const payload2 = {
-        title: taskData.title,
-        description: taskData.description,
-        status: taskData.status || 'pending',
-        dueDate: taskData.dueDate,
-        projectId: projectId
-      };
+      const response = await createTask(formattedData);
+      console.log('Task created successfully:', response.data);
       
-      // Opción 3: Usando formato de fecha ISO
-      const isoDate = new Date(taskData.dueDate).toISOString();
-      const payload3 = {
-        title: taskData.title,
-        description: taskData.description,
-        status: taskData.status || 'pending',
-        dueDate: isoDate,
-        project_id: projectId
-      };
-      
-      // Imprimir todos los formatos de payload para depuración
-      console.log('Payload Opción 1 (project_id):', payload1);
-      console.log('Payload Opción 2 (projectId):', payload2);
-      console.log('Payload Opción 3 (fechas ISO):', payload3);
-      
-      // Intentar con el payload3 (más probable que funcione con fechas ISO)
-      console.log('Intentando crear tarea con payload3...');
-      const response = await createTask(payload3);
-      
-      console.log('Respuesta del servidor:', response);
       const createdTask = response.data;
-      
       setTasks(prevTasks => [...prevTasks, createdTask]);
       
       if (onCreateTask) {
@@ -89,10 +65,6 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         console.error('Error status:', error.response.status);
         console.error('Error data:', error.response.data);
         console.error('Error headers:', error.response.headers);
-      } else if (error.request) {
-        console.error('No response received:', error.request);
-      } else {
-        console.error('Error message:', error.message);
       }
       
       // Mensaje de error más descriptivo
@@ -102,8 +74,8 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
           errorMessage = error.response.data;
         } else if (error.response.data.message) {
           errorMessage = error.response.data.message;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
+        } else if (error.response.data.errors && error.response.data.errors.length > 0) {
+          errorMessage = `Validation error: ${error.response.data.errors[0].msg}`;
         }
       }
       
@@ -113,15 +85,19 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
 
   const handleUpdateTask = async (taskData) => {
     try {
-      // Usar el formato que funcionó para crear la tarea
-      const isoDate = new Date(taskData.dueDate).toISOString();
+      // Mismo mapeo para actualización
       const formattedData = {
         title: taskData.title,
         description: taskData.description,
         status: taskData.status || 'pending',
-        dueDate: isoDate,
-        project_id: projectId
+        completion_date: taskData.dueDate,  // Mapear dueDate a completion_date
+        projectId: projectId
       };
+
+      // Solo incluir creation_date si se está actualizando
+      if (taskData.creation_date) {
+        formattedData.creation_date = taskData.creation_date;
+      }
 
       console.log('Updating task with data:', formattedData);
       
@@ -143,6 +119,7 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
     } catch (error) {
       console.error('Error updating task:', error);
       
+      // Información detallada del error para depuración
       if (error.response) {
         console.error('Error status:', error.response.status);
         console.error('Error data:', error.response.data);
@@ -187,12 +164,6 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         } catch (error) {
           console.error('Error deleting task:', error);
           
-          // Información detallada del error para depuración
-          if (error.response) {
-            console.error('Error status:', error.response.status);
-            console.error('Error data:', error.response.data);
-          }
-          
           // Mensaje de error más descriptivo
           let errorMessage = 'There was a problem deleting the task.';
           if (error.response && error.response.data && error.response.data.message) {
@@ -206,7 +177,12 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
   };
 
   const handleEditTask = (task) => {
-    setSelectedTask(task);
+    // Cuando editamos, debemos mapear los campos del backend al formato del formulario
+    const taskForForm = {
+      ...task,
+      dueDate: task.completion_date // Mapear completion_date a dueDate para el formulario
+    };
+    setSelectedTask(taskForForm);
   };
 
   const handleCancelEdit = () => {
