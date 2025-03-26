@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// URL relativa, esto funcionará cuando el frontend y backend estén en el mismo dominio
-const API_URL = '/api';
+// URL absoluta al backend
+const API_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
 
 // Configurar axios para incluir el token en todas las solicitudes
 axios.interceptors.request.use(

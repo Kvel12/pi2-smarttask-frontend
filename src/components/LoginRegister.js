@@ -100,14 +100,15 @@ const LoginRegister = ({ onLogin }) => {
     }
 
     try {
-      // Usar API directamente con axios y rutas relativas
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+      // Usar URL absoluta al backend
+      const BACKEND_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
+      const endpoint = isLogin ? '/auth/login' : '/auth/register';
       const data = isLogin ? { username, password } : { username, password, name };
       
       console.log(`Intentando ${isLogin ? 'login' : 'registro'} con:`, data);
       
-      // Usar axios para la solicitud
-      const response = await axios.post(endpoint, data);
+      // Usar axios para la solicitud con URL absoluta
+      const response = await axios.post(BACKEND_URL + endpoint, data);
       
       console.log('Respuesta:', response.data);
       
