@@ -1,15 +1,29 @@
 import axios from 'axios';
 
-// Usar el proxy serverless con comodín para cualquier ruta
-const API_BASE = '/api';
+// AllOrigins es un servicio de proxy CORS de confianza y gratuito
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+const BACKEND_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
+
+// Configuración especial para este proxy
+const api = axios.create({
+  baseURL: BACKEND_URL,
+  transformRequest: [(data, headers) => {
+    // No hay transformación especial para los datos
+    return data;
+  }]
+});
 
 // Configurar axios para incluir el token en todas las solicitudes
-axios.interceptors.request.use(
+api.interceptors.request.use(
   (config) => {
     const token = sessionStorage.getItem('token');
     if (token) {
       config.headers['x-auth-token'] = token;
     }
+    
+    // Modificar la URL para usar el proxy
+    config.url = CORS_PROXY + encodeURIComponent(BACKEND_URL + config.url);
+    
     return config;
   },
   (error) => {
@@ -18,22 +32,22 @@ axios.interceptors.request.use(
 );
 
 // Funciones para autenticación
-export const login = (credentials) => axios.post(`${API_BASE}/auth/login`, credentials);
-export const register = (userData) => axios.post(`${API_BASE}/auth/register`, userData);
-export const logout = () => axios.post(`${API_BASE}/auth/logout`);
+export const login = (credentials) => api.post('/auth/login', credentials);
+export const register = (userData) => api.post('/auth/register', userData);
+export const logout = () => api.post('/auth/logout');
 
 // Funciones para proyectos
-export const fetchProjects = () => axios.get(`${API_BASE}/projects`);
-export const createProject = (project) => axios.post(`${API_BASE}/projects`, project);
-export const deleteProject = (projectId) => axios.delete(`${API_BASE}/projects/${projectId}`);
-export const fetchProjectById = (projectId) => axios.get(`${API_BASE}/projects/${projectId}`);
-export const updateProject = (projectId, project) => axios.put(`${API_BASE}/projects/${projectId}`, project);
-export const fetchAllProjectIds = () => axios.get(`${API_BASE}/projects/all-ids`);
+export const fetchProjects = () => api.get('/projects');
+export const createProject = (project) => api.post('/projects', project);
+export const deleteProject = (projectId) => api.delete(`/projects/${projectId}`);
+export const fetchProjectById = (projectId) => api.get(`/projects/${projectId}`);
+export const updateProject = (projectId, project) => api.put(`/projects/${projectId}`, project);
+export const fetchAllProjectIds = () => api.get('/projects/all-ids');
 
 // Funciones para tareas
-export const fetchTasks = (projectId) => axios.get(`${API_BASE}/tasks/project/${projectId}`);
-export const createTask = (task) => axios.post(`${API_BASE}/tasks`, task);
-export const deleteTask = (taskId) => axios.delete(`${API_BASE}/tasks/${taskId}`);
-export const fetchTaskById = (taskId) => axios.get(`${API_BASE}/tasks/${taskId}`);
-export const updateTask = (taskId, task) => axios.put(`${API_BASE}/tasks/${taskId}`, task);
-export const fetchTasksByProjectId = (projectId) => axios.get(`${API_BASE}/tasks/project/${projectId}`);
+export const fetchTasks = (projectId) => api.get(`/tasks/project/${projectId}`);
+export const createTask = (task) => api.post('/tasks', task);
+export const deleteTask = (taskId) => api.delete(`/tasks/${taskId}`);
+export const fetchTaskById = (taskId) => api.get(`/tasks/${taskId}`);
+export const updateTask = (taskId, task) => api.put(`/tasks/${taskId}`, task);
+export const fetchTasksByProjectId = (projectId) => api.get(`/tasks/project/${projectId}`);
