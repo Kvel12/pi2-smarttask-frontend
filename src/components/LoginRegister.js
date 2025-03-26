@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Swal from 'sweetalert2';
 import '../assets/login.css';
+import axios from 'axios';
 
 // Componente para el formulario de inicio de sesión
 const LoginForm = ({ username, password, setUsername, setPassword, handleSubmit }) => (
@@ -99,32 +100,18 @@ const LoginRegister = ({ onLogin }) => {
     }
 
     try {
-      // Definir el proxy CORS y la URL del backend
-      const CORS_PROXY = 'https://thingproxy.freeboard.io/fetch/';
-      const API_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      // Usar API directamente con axios y rutas relativas
+      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const data = isLogin ? { username, password } : { username, password, name };
       
       console.log(`Intentando ${isLogin ? 'login' : 'registro'} con:`, data);
       
-      // Usar fetch con el proxy CORS
-      const response = await fetch(CORS_PROXY + API_URL + endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': 'https://pi2-smarttask-frontend.vercel.app/'  // Añadimos el origen como header
-        },
-        body: JSON.stringify(data)
-      });
+      // Usar axios para la solicitud
+      const response = await axios.post(endpoint, data);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      console.log('Respuesta:', response.data);
       
-      const result = await response.json();
-      console.log('Respuesta:', result);
-      
-      const token = result.token;
+      const token = response.data.token;
       if (token) {
         sessionStorage.setItem('token', token);
         onLogin();
@@ -144,7 +131,7 @@ const LoginRegister = ({ onLogin }) => {
       Swal.fire({
         icon: 'error',
         title: `Error ${isLogin ? 'logging in' : 'registering'}`,
-        text: error.message || 'An error occurred. Please try again.'
+        text: error.response?.data?.message || error.message || 'An error occurred. Please try again.'
       });
     }
   };
