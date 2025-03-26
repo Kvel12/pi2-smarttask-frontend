@@ -235,29 +235,21 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' o 'projects'
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Determinar la URL base para redirecciones
-  const getBaseUrl = () => {
-    // Obtener la URL base de la aplicación
-    return window.location.origin;
-  };
-
-  // Función segura para redireccionar al login
-  const redirectToLogin = () => {
+  // Función simplificada para redireccionar a la raíz/dominio principal
+  const redirectToRoot = () => {
     try {
-      // Usar history primero para intentar navegación dentro de React Router
-      history.replace("/login");
+      // Redirigir directamente a la raíz del dominio
+      const baseUrl = window.location.origin;
       
-      // Como respaldo, también modificar el estado del historial del navegador
-      window.history.replaceState(null, document.title, `${getBaseUrl()}/login`);
+      // Limpiar el historial para prevenir navegación "atrás"
+      window.history.replaceState(null, document.title, baseUrl);
       
-      // Por último, forzar una recarga completa si es necesario
-      setTimeout(() => {
-        window.location.href = `${getBaseUrl()}/login`;
-      }, 100);
+      // Forzar una recarga completa
+      window.location.href = baseUrl;
     } catch (error) {
       console.error("Error during redirect:", error);
-      // Si todo falla, intentar con una redirección absoluta básica
-      window.location.href = "/login";
+      // Si todo falla, recarga la página en la ubicación actual
+      window.location.reload();
     }
   };
 
@@ -265,8 +257,8 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
   useEffect(() => {
     const token = sessionStorage.getItem('token');
     if (!token) {
-      // Si no hay token, redirige a login
-      redirectToLogin();
+      // Si no hay token, redirige a la raíz
+      redirectToRoot();
     }
   }, []);
 
@@ -285,7 +277,7 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
       console.error('Error refreshing projects:', error);
       if (error.response && error.response.status === 401) {
         // Token expirado o inválido
-        redirectToLogin();
+        redirectToRoot();
       }
     }
   };
@@ -319,7 +311,7 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
           console.error('Error deleting project:', error);
           Swal.fire('Error', 'There was a problem deleting the project.', 'error');
           if (error.response && error.response.status === 401) {
-            redirectToLogin();
+            redirectToRoot();
           }
         }
       }
@@ -370,7 +362,7 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
       console.error('Error:', error);
       Swal.fire('Error', 'Something went wrong!', 'error');
       if (error.response && error.response.status === 401) {
-        redirectToLogin();
+        redirectToRoot();
       }
     }
   };
@@ -418,8 +410,8 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
             timer: 1500,
             showConfirmButton: false
           }).then(() => {
-            // 4. Usar la función de redirección segura
-            redirectToLogin();
+            // 4. Redireccionar a la raíz
+            redirectToRoot();
           });
         } catch (error) {
           console.error('Error during logout process:', error);
@@ -436,7 +428,7 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
             timer: 1500,
             showConfirmButton: false
           }).then(() => {
-            redirectToLogin();
+            redirectToRoot();
           });
         }
       }

@@ -11,6 +11,11 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Obtener URL base para redirecciones consistentes
+  const getBaseUrl = () => {
+    return window.location.origin;
+  };
+
   // Verificar token al cargar la app y en cada cambio de historia
   useEffect(() => {
     checkAuthentication();
@@ -32,10 +37,8 @@ function App() {
       setIsLoggedIn(false);
       
       // Si no hay token y no estamos en la página de login, 
-      // reemplazar la historia para evitar volver atrás
-      if (window.location.pathname !== '/login') {
-        window.history.replaceState(null, document.title, '/login');
-      }
+      // mejor mantener la ruta actual para que el router se encargue
+      // en lugar de modificar la historia aquí
     }
     setIsLoading(false);
   };
@@ -51,7 +54,7 @@ function App() {
     try {
       setIsLoading(true);
       const response = await fetchProjects();
-      setProjects(response.data);
+      setProjects(response.data || []);
       setIsLoading(false);
     } catch (error) {
       console.error('Error loading projects', error);
@@ -73,14 +76,15 @@ function App() {
     sessionStorage.removeItem('token');
     localStorage.removeItem('token'); // Por si acaso
     setIsLoggedIn(false);
+    
     Swal.fire({
       icon: 'warning',
       title: 'Session Expired',
       text: 'Your session has expired. Please login again.'
     }).then(() => {
-      // Redirigir y reemplazar historia
-      window.history.replaceState(null, document.title, '/login');
-      window.location.href = '/login';
+      // Redirigir a la raíz del sitio
+      window.history.replaceState(null, document.title, getBaseUrl());
+      window.location.href = getBaseUrl();
     });
   };
 
