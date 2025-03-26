@@ -367,14 +367,22 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
     }
   };
 
+  // Corregido para asegurar que la pestaña de proyectos esté activa antes de mostrar el modal
   const handleViewTasks = (project) => {
-    setActiveTab('projects'); // Cambiar a la pestaña de proyectos
-    setSelectedProject(project);
-    setIsTaskModalOpen(true);
+    // Primero, aseguramos que la pestaña 'projects' esté activa
+    setActiveTab('projects');
     
-    if (onSelectProject) {
-      onSelectProject(project);
-    }
+    // Establecemos el proyecto seleccionado
+    setSelectedProject(project);
+    
+    // Usamos un pequeño retraso para asegurar que el cambio de pestaña se haya procesado
+    setTimeout(() => {
+      setIsTaskModalOpen(true);
+      
+      if (onSelectProject) {
+        onSelectProject(project);
+      }
+    }, 50); // Un retraso mínimo para asegurar el orden de ejecución
   };
   
   // Función de logout mejorada
