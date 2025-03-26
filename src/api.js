@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = '/api';
+const API_URL = 'https://smarttask-backend-tcsj.onrender.com';
 
 // Configurar axios para incluir el token en todas las solicitudes
 axios.interceptors.request.use(
