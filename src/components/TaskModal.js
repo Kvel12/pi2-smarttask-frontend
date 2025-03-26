@@ -14,13 +14,17 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
   useEffect(() => {
     if (isOpen && projectId) {
       setIsLoading(true);
+      console.log(`Fetching tasks for project ID: ${projectId}`);
+      
       fetchTasksByProjectId(projectId)
         .then(response => {
+          console.log("Tasks fetched successfully:", response.data);
           setTasks(response.data || []);
           setIsLoading(false);
         })
         .catch(error => {
           console.error('Error fetching tasks:', error);
+          console.error('Error response:', error.response ? error.response.data : 'No response data');
           setIsLoading(false);
           Swal.fire('Error', 'There was a problem fetching the tasks.', 'error');
         });
@@ -29,21 +33,46 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
 
   const handleCreateTask = async (taskData) => {
     try {
-      // Formatear los datos correctamente para el backend
-      const formattedData = {
+      // Probar diferentes formatos para encontrar lo que espera el backend
+      // Opción 1: Usando project_id
+      const payload1 = {
         title: taskData.title,
         description: taskData.description,
         status: taskData.status || 'pending',
         dueDate: taskData.dueDate,
-        project_id: projectId  // Aquí está el cambio principal - project_id en lugar de projectId
+        project_id: projectId
       };
-
-      console.log('Sending task data to server:', formattedData);
       
-      const response = await createTask(formattedData);
+      // Opción 2: Usando projectId
+      const payload2 = {
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status || 'pending',
+        dueDate: taskData.dueDate,
+        projectId: projectId
+      };
+      
+      // Opción 3: Usando formato de fecha ISO
+      const isoDate = new Date(taskData.dueDate).toISOString();
+      const payload3 = {
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status || 'pending',
+        dueDate: isoDate,
+        project_id: projectId
+      };
+      
+      // Imprimir todos los formatos de payload para depuración
+      console.log('Payload Opción 1 (project_id):', payload1);
+      console.log('Payload Opción 2 (projectId):', payload2);
+      console.log('Payload Opción 3 (fechas ISO):', payload3);
+      
+      // Intentar con el payload3 (más probable que funcione con fechas ISO)
+      console.log('Intentando crear tarea con payload3...');
+      const response = await createTask(payload3);
+      
+      console.log('Respuesta del servidor:', response);
       const createdTask = response.data;
-      
-      console.log('Task created successfully:', createdTask);
       
       setTasks(prevTasks => [...prevTasks, createdTask]);
       
@@ -55,10 +84,27 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
     } catch (error) {
       console.error('Error creating task:', error);
       
+      // Información detallada del error para depuración
+      if (error.response) {
+        console.error('Error status:', error.response.status);
+        console.error('Error data:', error.response.data);
+        console.error('Error headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error message:', error.message);
+      }
+      
       // Mensaje de error más descriptivo
       let errorMessage = 'There was a problem creating the task.';
-      if (error.response && error.response.data && error.response.data.message) {
-        errorMessage = error.response.data.message;
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        }
       }
       
       Swal.fire('Error', errorMessage, 'error');
@@ -67,13 +113,14 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
 
   const handleUpdateTask = async (taskData) => {
     try {
-      // Formatear correctamente los datos para actualización
+      // Usar el formato que funcionó para crear la tarea
+      const isoDate = new Date(taskData.dueDate).toISOString();
       const formattedData = {
         title: taskData.title,
         description: taskData.description,
         status: taskData.status || 'pending',
-        dueDate: taskData.dueDate,
-        project_id: projectId  // Usar project_id en lugar de projectId
+        dueDate: isoDate,
+        project_id: projectId
       };
 
       console.log('Updating task with data:', formattedData);
@@ -95,6 +142,11 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
       Swal.fire('Updated!', 'The task has been updated successfully.', 'success');
     } catch (error) {
       console.error('Error updating task:', error);
+      
+      if (error.response) {
+        console.error('Error status:', error.response.status);
+        console.error('Error data:', error.response.data);
+      }
       
       // Mensaje de error más descriptivo
       let errorMessage = 'There was a problem updating the task.';
@@ -134,6 +186,12 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
           );
         } catch (error) {
           console.error('Error deleting task:', error);
+          
+          // Información detallada del error para depuración
+          if (error.response) {
+            console.error('Error status:', error.response.status);
+            console.error('Error data:', error.response.data);
+          }
           
           // Mensaje de error más descriptivo
           let errorMessage = 'There was a problem deleting the task.';
