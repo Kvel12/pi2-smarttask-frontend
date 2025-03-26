@@ -1,11 +1,29 @@
-const axios = require('axios');
+// api/proxy.js
+import axios from 'axios';
+
+// Helper para leer el cuerpo de la solicitud
+const readBody = (req) => {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        resolve({});
+      }
+    });
+  });
+};
 
 export default async function handler(req, res) {
   // Configurar CORS para la función serverless
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-auth-token');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-auth-token, Authorization');
 
   // Manejar preflight OPTIONS
   if (req.method === 'OPTIONS') {
@@ -20,25 +38,36 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Leer el cuerpo de la solicitud
+    const requestBody = await readBody(req);
+    
+    // Preparar headers
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
     // Añadir el token de autorización si existe
-    const headers = {};
     if (req.headers['x-auth-token']) {
       headers['x-auth-token'] = req.headers['x-auth-token'];
     }
 
     // Reenviar la solicitud al backend
+    const url = `https://smarttask-backend-tcsj.onrender.com/api/${endpoint}`;
+    console.log(`Proxy: ${req.method} ${url}`);
+    
     const response = await axios({
       method: req.method,
-      url: `https://smarttask-backend-tcsj.onrender.com/api/${endpoint}`,
-      data: req.body,
-      headers
+      url: url,
+      data: requestBody,
+      headers: headers
     });
 
     // Devolver la respuesta al cliente
     return res.status(response.status).json(response.data);
   } catch (error) {
+    console.error('Proxy error:', error.message);
     const status = error.response?.status || 500;
-    const data = error.response?.data || { message: 'Error del servidor' };
+    const data = error.response?.data || { message: 'Error del servidor: ' + error.message };
     return res.status(status).json(data);
   }
 }
