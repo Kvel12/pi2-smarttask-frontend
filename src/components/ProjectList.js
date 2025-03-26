@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { deleteProject, createProject, updateProject, fetchTasksByProjectId, logout, fetchProjects } from '../api';
+import { deleteProject, createProject, updateProject, fetchTasksByProjectId, logout } from '../api';
 import { useHistory } from 'react-router-dom';
 import TaskList from './TaskList';
-import TaskForm from './TaskForm';
+import TaskModal from './TaskModal';
 import { FaPlus, FaEye, FaEdit, FaTrash, FaCalendarAlt, FaClock, FaExclamationCircle, FaSignOutAlt, FaChartBar, FaList, FaTasks } from 'react-icons/fa';
 import ProjectForm from './ProjectForm';
 import Modal from './Modal';
 import Swal from 'sweetalert2';
-import taskImage from '../assets/tarea.png';
+import taskImage from '../assets/tarea.png'; // Asegúrate de que la ruta sea correcta
 import Chart from 'react-apexcharts';
 
 const Dashboard = ({ projects }) => {
@@ -231,9 +231,7 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
   const [projectList, setProjectList] = useState(initialProjects);
   const [editProject, setEditProject] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [showTasks, setShowTasks] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' o 'projects'
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -330,43 +328,67 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
     }
   };
 
-  const handleViewTasks = async (project) => {
-    setIsLoading(true);
+  const handleViewTasks = (project) => {
+    setActiveTab('projects'); // Cambiar a la pestaña de proyectos
     setSelectedProject(project);
-    try {
-      const response = await fetchTasksByProjectId(project.id);
-      setTasks(response.data);
-      setShowTasks(true);
-      setIsLoading(false);
-      // Notificar al componente padre si es necesario
-      if (onSelectProject) {
-        onSelectProject(project);
-      }
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      setIsLoading(false);
-      Swal.fire('Error', 'There was a problem fetching tasks for this project.', 'error');
+    setIsTaskModalOpen(true);
+    
+    if (onSelectProject) {
+      onSelectProject(project);
     }
-  };
-
-  const handleCloseTasks = () => {
-    setShowTasks(false);
-    setSelectedProject(null);
   };
   
-  const handleLogout = async () => {
-    try {
-      await logout(); // Llamada a la API para cerrar sesión
-      // Eliminar el token del sessionStorage
-      sessionStorage.removeItem('token');
-      // Redireccionar a la página de login
-      history.push('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-      // Incluso si hay un error, intentamos cerrar la sesión localmente
-      sessionStorage.removeItem('token');
-      history.push('/login');
-    }
+  const handleLogout = () => {
+    Swal.fire({
+      title: 'Logout',
+      text: 'Are you sure you want to logout?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, logout!',
+      cancelButtonText: 'Cancel'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await logout(); // Llamada a la API para cerrar sesión
+          
+          // Eliminar el token del sessionStorage
+          sessionStorage.removeItem('token');
+          
+          Swal.fire({
+            title: 'Logged Out!', 
+            text: 'You have been successfully logged out.',
+            icon: 'success',
+            timer: 2000,
+            showConfirmButton: false
+          }).then(() => {
+            // Redireccionar a la página de login usando history.push
+            history.replace('/login');
+          });
+        } catch (error) {
+          console.error('Error logging out:', error);
+          // Incluso si hay un error, intentamos cerrar la sesión localmente
+          sessionStorage.removeItem('token');
+          
+          Swal.fire({
+            title: 'Logged Out!', 
+            text: 'You have been logged out.',
+            icon: 'success',
+            timer: 2000,
+            showConfirmButton: false
+          }).then(() => {
+            // Forzar la redirección
+            window.location.href = '/login';
+          });
+        }
+      }
+    });
+  };
+
+  const handleTasksUpdate = () => {
+    // Actualizar la lista de proyectos si es necesario
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const getPriorityStyle = (priority) => {
@@ -427,74 +449,55 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
         
         {/* Projects Tab */}
         {activeTab === 'projects' && (
-          showTasks && selectedProject ? (
-            <div style={styles.tasksContainer}>
-              <div style={styles.taskHeader}>
-                <h2>Tasks for {selectedProject.title}</h2>
-                <button style={styles.backButton} onClick={handleCloseTasks}>
-                  Back to Projects
-                </button>
+          <>
+            {projectList.length === 0 ? (
+              <div style={styles.noProjectsMessage}>
+                <img src={taskImage} alt="No projects" style={styles.noProjectsImage} />
+                <p>No projects available. Create a new project to get started!</p>
               </div>
-              {isLoading ? (
-                <div style={styles.loadingMessage}>Loading tasks...</div>
-              ) : (
-                <TaskList 
-                  tasks={tasks}
-                  projectId={selectedProject.id} 
-                  onTaskUpdate={() => handleViewTasks(selectedProject)}
-                />
-              )}
-            </div>
-          ) : (
-            <>
-              {projectList.length === 0 ? (
-                <div style={styles.noProjectsMessage}>
-                  <img src={taskImage} alt="No projects" style={styles.noProjectsImage} />
-                  <p>No projects available. Create a new project to get started!</p>
-                </div>
-              ) : (
-                <ul style={styles.projectList}>
-                  {projectList.map((project) => (
-                    <li key={project.id} style={styles.projectItem}>
-                      <div style={styles.projectDetails}>
-                        <div style={styles.projectHeader}>
-                          <span style={styles.projectTitle}>{project.title}</span>
-                          <div style={styles.projectInfo}>
-                            <div style={styles.infoItem}>
-                              <FaCalendarAlt /> <strong>Created:</strong> {' '}
-                              {formatDate(project.creation_date || project.createdAt)}
-                            </div>
-                            <div style={styles.infoItem}>
-                              <FaClock /> <strong>Culmination:</strong> {' '}
-                              {formatDate(project.culmination_date)}
-                            </div>
-                            <div style={styles.infoItem}>
-                              <FaExclamationCircle /> <strong>Priority:</strong> {' '}
-                              <span style={getPriorityStyle(project.priority)}>{project.priority}</span>
-                            </div>
+            ) : (
+              <ul style={styles.projectList}>
+                {projectList.map((project) => (
+                  <li key={project.id} style={styles.projectItem}>
+                    <div style={styles.projectDetails}>
+                      <div style={styles.projectHeader}>
+                        <span style={styles.projectTitle}>{project.title}</span>
+                        <div style={styles.projectInfo}>
+                          <div style={styles.infoItem}>
+                            <FaCalendarAlt /> <strong>Created:</strong> {' '}
+                            {formatDate(project.creation_date || project.createdAt)}
+                          </div>
+                          <div style={styles.infoItem}>
+                            <FaClock /> <strong>Culmination:</strong> {' '}
+                            {formatDate(project.culmination_date)}
+                          </div>
+                          <div style={styles.infoItem}>
+                            <FaExclamationCircle /> <strong>Priority:</strong> {' '}
+                            <span style={getPriorityStyle(project.priority)}>{project.priority}</span>
                           </div>
                         </div>
-                        <div style={styles.actions}>
-                          <button style={styles.viewButton} onClick={() => handleViewTasks(project)}>
-                            <FaEye /> View Tasks
-                          </button>
-                          <button style={styles.editButton} onClick={() => handleEditProject(project)}>
-                            <FaEdit /> Edit
-                          </button>
-                          <button style={styles.deleteButton} onClick={() => handleDelete(project.id)}>
-                            <FaTrash /> Delete
-                          </button>
-                        </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )
+                      <div style={styles.actions}>
+                        <button style={styles.viewButton} onClick={() => handleViewTasks(project)}>
+                          <FaEye /> View Tasks
+                        </button>
+                        <button style={styles.editButton} onClick={() => handleEditProject(project)}>
+                          <FaEdit /> Edit
+                        </button>
+                        <button style={styles.deleteButton} onClick={() => handleDelete(project.id)}>
+                          <FaTrash /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
 
+      {/* Project Modal */}
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <ProjectForm
           onSubmit={handleSubmit}
@@ -502,6 +505,18 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
           initialData={editProject}
         />
       </Modal>
+
+      {/* Task Modal */}
+      {selectedProject && (
+        <TaskModal 
+          isOpen={isTaskModalOpen} 
+          onClose={() => setIsTaskModalOpen(false)} 
+          projectId={selectedProject.id}
+          onCreateTask={handleTasksUpdate}
+          onUpdateTask={handleTasksUpdate}
+          onDeleteTask={handleTasksUpdate}
+        />
+      )}
     </div>
   );
 };
@@ -687,36 +702,6 @@ const styles = {
     marginBottom: '20px',
     opacity: '0.7',
   },
-  tasksContainer: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    padding: '20px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-  },
-  taskHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px',
-    borderBottom: '1px solid #eee',
-    paddingBottom: '15px',
-  },
-  backButton: {
-    backgroundColor: '#6c757d',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '8px 15px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    transition: 'background-color 0.3s ease',
-  },
-  loadingMessage: {
-    textAlign: 'center',
-    padding: '20px',
-    fontSize: '18px',
-    color: '#666',
-  },
   dashboard: {
     padding: '20px',
     backgroundColor: '#fff',
@@ -772,11 +757,11 @@ const styles = {
   chart: {
     flex: '1 1 45%',
     minWidth: '300px',
-    padding: '10px',
+    padding: '20px',
     borderRadius: '8px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     background: '#fff',
-  },
+  }
 };
 
 export default ProjectList;
