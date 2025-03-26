@@ -100,15 +100,12 @@ const LoginRegister = ({ onLogin }) => {
     }
 
     try {
-      // Usamos un proxy CORS para evitar problemas
-      const CORS_PROXY = 'https://corsproxy.io/?';
-      
       let response;
       if (isLogin) {
-        // Usar la función login importada desde api.js con el proxy
+        // Usar la función login importada desde api.js
         response = await login({ username, password });
       } else {
-        // Usar la función register importada desde api.js con el proxy
+        // Usar la función register importada desde api.js
         response = await register({ username, password, name });
       }
       
