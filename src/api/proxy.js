@@ -1,25 +1,7 @@
-// api/proxy.js
-import axios from 'axios';
+const axios = require('axios');
 
-// Helper para leer el cuerpo de la solicitud
-const readBody = (req) => {
-  return new Promise((resolve) => {
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      try {
-        resolve(body ? JSON.parse(body) : {});
-      } catch (error) {
-        resolve({});
-      }
-    });
-  });
-};
-
-export default async function handler(req, res) {
-  // Configurar CORS para la función serverless
+module.exports = async (req, res) => {
+  // Habilitar CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -31,43 +13,46 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { endpoint } = req.query;
-  
-  if (!endpoint) {
-    return res.status(400).json({ error: 'Se requiere un endpoint' });
+  // Obtener la ruta desde los parámetros
+  const { path } = req.query;
+  if (!path || !path.length) {
+    return res.status(400).json({ error: 'Path is required' });
   }
 
+  const endpoint = path.join('/');
+  
   try {
-    // Leer el cuerpo de la solicitud
-    const requestBody = await readBody(req);
+    // Preparar headers para la solicitud al backend
+    const headers = {};
     
-    // Preparar headers
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    // Añadir el token de autorización si existe
+    // Transferir headers relevantes
     if (req.headers['x-auth-token']) {
       headers['x-auth-token'] = req.headers['x-auth-token'];
     }
+    if (req.headers['content-type']) {
+      headers['content-type'] = req.headers['content-type'];
+    }
 
-    // Reenviar la solicitud al backend
-    const url = `https://smarttask-backend-tcsj.onrender.com/api/${endpoint}`;
-    console.log(`Proxy: ${req.method} ${url}`);
+    // Construir URL del backend
+    const backendUrl = `https://smarttask-backend-tcsj.onrender.com/api/${endpoint}`;
     
+    // Ejecutar la solicitud al backend
     const response = await axios({
       method: req.method,
-      url: url,
-      data: requestBody,
+      url: backendUrl,
+      data: req.body,
       headers: headers
     });
 
-    // Devolver la respuesta al cliente
+    // Devolver la respuesta del backend
     return res.status(response.status).json(response.data);
   } catch (error) {
     console.error('Proxy error:', error.message);
+    
+    // Manejar la respuesta de error
     const status = error.response?.status || 500;
-    const data = error.response?.data || { message: 'Error del servidor: ' + error.message };
-    return res.status(status).json(data);
+    const errorMessage = error.response?.data || { message: 'Internal Server Error: ' + error.message };
+    
+    return res.status(status).json(errorMessage);
   }
-}
+};
