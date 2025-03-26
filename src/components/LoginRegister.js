@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import Swal from 'sweetalert2';
 import '../assets/login.css';
+import { login, register } from '../api'; // Importamos las funciones de API
 
-const API_URL = 'https://smarttask-backend-tcsj.onrender.com';
-
+// Componente para el formulario de inicio de sesión
 const LoginForm = ({ username, password, setUsername, setPassword, handleSubmit }) => (
   <form onSubmit={handleSubmit}>
     <h1>Sign In</h1>
@@ -36,6 +35,7 @@ const LoginForm = ({ username, password, setUsername, setPassword, handleSubmit 
   </form>
 );
 
+// Componente para el formulario de registro
 const RegisterForm = ({ name, username, password, setName, setUsername, setPassword, handleSubmit }) => (
   <form onSubmit={handleSubmit}>
     <h1>Create Account</h1>
@@ -100,15 +100,30 @@ const LoginRegister = ({ onLogin }) => {
     }
 
     try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const data = isLogin ? { username, password } : { username, password, name };
-      const response = await axios.post(`${API_URL}${endpoint}`, data);
+      // Usamos un proxy CORS para evitar problemas
+      const CORS_PROXY = 'https://corsproxy.io/?';
+      
+      let response;
+      if (isLogin) {
+        // Usar la función login importada desde api.js con el proxy
+        response = await login({ username, password });
+      } else {
+        // Usar la función register importada desde api.js con el proxy
+        response = await register({ username, password, name });
+      }
+      
       const token = response.data.token;
       if (token) {
         sessionStorage.setItem('token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         onLogin();
         resetForm();
+        
+        Swal.fire({
+          icon: 'success',
+          title: isLogin ? 'Login Successful' : 'Registration Successful',
+          text: isLogin ? 'Welcome back!' : 'Your account has been created!',
+          timer: 1500
+        });
       } else {
         console.error('No token received from the server');
         Swal.fire({

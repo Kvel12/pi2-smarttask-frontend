@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
+// Añadimos un proxy CORS para evitar problemas de CORS
+const CORS_PROXY = 'https://corsproxy.io/?';
+const BACKEND_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
+const API_URL = CORS_PROXY + BACKEND_URL;
 
 // Configurar axios para incluir el token en todas las solicitudes
 axios.interceptors.request.use(
