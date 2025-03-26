@@ -235,6 +235,32 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' o 'projects'
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Determinar la URL base para redirecciones
+  const getBaseUrl = () => {
+    // Obtener la URL base de la aplicación
+    return window.location.origin;
+  };
+
+  // Función segura para redireccionar al login
+  const redirectToLogin = () => {
+    try {
+      // Usar history primero para intentar navegación dentro de React Router
+      history.replace("/login");
+      
+      // Como respaldo, también modificar el estado del historial del navegador
+      window.history.replaceState(null, document.title, `${getBaseUrl()}/login`);
+      
+      // Por último, forzar una recarga completa si es necesario
+      setTimeout(() => {
+        window.location.href = `${getBaseUrl()}/login`;
+      }, 100);
+    } catch (error) {
+      console.error("Error during redirect:", error);
+      // Si todo falla, intentar con una redirección absoluta básica
+      window.location.href = "/login";
+    }
+  };
+
   // Verificar autenticación al cargar el componente
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -243,15 +269,6 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
       redirectToLogin();
     }
   }, []);
-
-  // Función segura para redireccionar al login
-  const redirectToLogin = () => {
-    // Técnica 1: Usar window.location para una redirección completa
-    window.location.href = '/login';
-    
-    // Técnica 2 (respaldo): Modificar historial para prevenir "back"
-    window.history.replaceState(null, document.title, '/login');
-  };
 
   useEffect(() => {
     if (initialProjects) {
@@ -382,12 +399,16 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          // 1. Llamar a la API de logout
-          await logout();
+          // 1. Intentar llamar a API logout
+          try {
+            await logout();
+          } catch (error) {
+            console.warn("Logout API call failed, proceeding with local logout", error);
+          }
           
-          // 2. Limpiar el token localmente
+          // 2. Limpiar todos los tokens posibles
           sessionStorage.removeItem('token');
-          localStorage.removeItem('token'); // Por si acaso está también en localStorage
+          localStorage.removeItem('token');
           
           // 3. Mostrar mensaje de éxito
           Swal.fire({
@@ -397,19 +418,17 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
             timer: 1500,
             showConfirmButton: false
           }).then(() => {
-            // 4. Prevenir navegación "back" reemplazando la entrada actual del historial
-            window.history.replaceState(null, document.title, '/login');
-            
-            // 5. Forzar redirección a login (método más fiable)
-            window.location.href = '/login';
+            // 4. Usar la función de redirección segura
+            redirectToLogin();
           });
         } catch (error) {
-          console.error('Error logging out:', error);
+          console.error('Error during logout process:', error);
           
-          // Incluso si hay un error, asegurar el logout local
+          // Asegurar limpieza de tokens incluso con error
           sessionStorage.removeItem('token');
           localStorage.removeItem('token');
           
+          // Mostrar mensaje y redireccionar
           Swal.fire({
             title: 'Logged Out!', 
             text: 'You have been logged out.',
@@ -417,9 +436,7 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
             timer: 1500,
             showConfirmButton: false
           }).then(() => {
-            // Misma estrategia para forzar redirección
-            window.history.replaceState(null, document.title, '/login');
-            window.location.href = '/login';
+            redirectToLogin();
           });
         }
       }
