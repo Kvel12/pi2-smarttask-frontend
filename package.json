@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "homepage": "/",
+  "proxy": "https://smarttask-backend-tcsj.onrender.com",
   "dependencies": {
     "serve": "^14.2.0",
     "axios": "^0.21.1",
