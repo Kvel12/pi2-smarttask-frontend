@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { deleteProject, createProject, updateProject, fetchTasksByProjectId } from '../api';
+import TaskList from './TaskList';
+import TaskForm from './TaskForm';
 import { FaPlus, FaEye, FaEdit, FaTrash, FaCalendarAlt, FaClock, FaExclamationCircle } from 'react-icons/fa';
 import ProjectForm from './ProjectForm';
 import Modal from './Modal';
@@ -92,6 +94,7 @@ const ProjectList = ({ projects, onSelectProject, onDeleteProject }) => {
     try {
       const response = await fetchTasksByProjectId(project.id);
       setTasks(response.data);
+      return TaskList(response.data);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       Swal.fire('Error', 'There was a problem fetching tasks for this project.', 'error');
