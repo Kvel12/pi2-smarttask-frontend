@@ -11,14 +11,34 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Verificar token al cargar la app
+  // Verificar token al cargar la app y en cada cambio de historia
   useEffect(() => {
+    checkAuthentication();
+    
+    // Escuchar eventos de navegación para verificar autenticación
+    window.addEventListener('popstate', checkAuthentication);
+    
+    return () => {
+      window.removeEventListener('popstate', checkAuthentication);
+    };
+  }, []);
+
+  // Función centralizada para verificar autenticación
+  const checkAuthentication = () => {
     const token = sessionStorage.getItem('token');
     if (token) {
       setIsLoggedIn(true);
+    } else {
+      setIsLoggedIn(false);
+      
+      // Si no hay token y no estamos en la página de login, 
+      // reemplazar la historia para evitar volver atrás
+      if (window.location.pathname !== '/login') {
+        window.history.replaceState(null, document.title, '/login');
+      }
     }
     setIsLoading(false);
-  }, []);
+  };
 
   // Cargar proyectos cuando el usuario inicia sesión
   useEffect(() => {
@@ -51,11 +71,16 @@ function App() {
 
   const handleSessionExpired = () => {
     sessionStorage.removeItem('token');
+    localStorage.removeItem('token'); // Por si acaso
     setIsLoggedIn(false);
     Swal.fire({
       icon: 'warning',
       title: 'Session Expired',
       text: 'Your session has expired. Please login again.'
+    }).then(() => {
+      // Redirigir y reemplazar historia
+      window.history.replaceState(null, document.title, '/login');
+      window.location.href = '/login';
     });
   };
 
