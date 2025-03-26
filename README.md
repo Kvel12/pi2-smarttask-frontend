@@ -1,70 +1,146 @@
-# Getting Started with Create React App
+# SmartTask Project Manager - Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+[![Deployed on Render](https://img.shields.io/badge/Render-Deployed-success)](https://pi2-smarttask-frontend.onrender.com/)
 
-## Available Scripts
+## 📋 Descripción
 
-In the project directory, you can run:
+SmartTask es una aplicación modular de gestión de proyectos y tareas que permite a los usuarios organizar su trabajo de manera eficiente. Esta aplicación está diseñada con una arquitectura modular, separando el frontend, backend y base de datos en servicios independientes, todos desplegados en Render.
 
-### `npm start`
+![SmartTask Dashboard](src/images/dashboard.png)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## ✨ Características
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **Autenticación de usuarios**: Registro e inicio de sesión seguro
+- **Gestión de proyectos**: Crear, leer, actualizar y eliminar proyectos
+- **Gestión de tareas**: Organizar tareas por proyecto con estados configurables
+- **Panel de control**: Visualización gráfica del estado de los proyectos
+- **Diseño responsivo**: Funciona en dispositivos móviles y de escritorio
+- **Seguridad**: Autenticación basada en JWT
 
-### `npm test`
+## 🛠️ Tecnologías
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **React**: Biblioteca para la interfaz de usuario
+- **React Router**: Enrutamiento dentro de la aplicación
+- **Axios**: Cliente HTTP para comunicación con la API
+- **ApexCharts**: Visualización de datos
+- **SweetAlert2**: Notificaciones y diálogos mejorados
+- **React Icons**: Iconos vectoriales
 
-### `npm run build`
+## 🚀 Instalación y configuración local
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/[tu-usuario]/pi2-smarttask-frontend.git
+   cd pi2-smarttask-frontend
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. Instala las dependencias:
+   ```bash
+   npm install
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. Configura las variables de entorno:
+   - Crea un archivo `.env` en la raíz del proyecto
+   - Añade la URL del backend:
+     ```
+     REACT_APP_API_URL=https://smarttask-backend-tcsj.onrender.com/api
+     ```
 
-### `npm run eject`
+4. Inicia el servidor de desarrollo:
+   ```bash
+   npm start
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+5. Abre tu navegador en [http://localhost:3000](http://localhost:3000)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 📁 Estructura del proyecto
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```
+src/
+│
+├── api/          # Configuración de Axios y funciones de API
+├── assets/       # Imágenes y recursos estáticos
+├── components/   # Componentes React reutilizables
+│   ├── Dashboard.js       # Visualización de estadísticas
+│   ├── LoginRegister.js   # Formularios de autenticación
+│   ├── Modal.js           # Componente modal genérico
+│   ├── ProjectForm.js     # Formulario de proyectos
+│   ├── ProjectList.js     # Lista de proyectos
+│   ├── TaskForm.js        # Formulario de tareas
+│   ├── TaskList.js        # Lista de tareas
+│   └── TaskModal.js       # Modal para gestión de tareas
+│
+├── images/       # Imágenes para documentación y UI
+├── App.js        # Componente principal y enrutamiento
+├── index.js      # Punto de entrada
+└── ...
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## 📘 Guía de usuario
 
-## Learn More
+### Inicio de sesión y registro
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1. Accede a la aplicación en [https://pi2-smarttask-frontend.onrender.com](https://pi2-smarttask-frontend.onrender.com)
+2. Si ya tienes una cuenta, introduce tu nombre de usuario y contraseña
+3. Si eres un nuevo usuario, haz clic en "Register" para crear una cuenta
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Panel de control
 
-### Code Splitting
+El panel de control te muestra:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+- Total de proyectos
+- Proyectos de alta prioridad
+- Plazos próximos
+- Gráfico de proyectos por fecha de creación
+- Gráfico de proyectos por prioridad
 
-### Analyzing the Bundle Size
+### Gestión de proyectos
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+1. Haz clic en la pestaña "Projects" para ver tus proyectos
+2. Para crear un nuevo proyecto, haz clic en "NEW PROJECT"
+3. Completa el formulario con:
+   - Título
+   - Descripción
+   - Fecha de culminación
+   - Prioridad (alta, media, baja)
+4. Para editar un proyecto, haz clic en el botón "Edit" en la tarjeta del proyecto
+5. Para eliminar un proyecto, haz clic en el botón "Delete"
 
-### Making a Progressive Web App
+### Gestión de tareas
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+1. Para ver las tareas de un proyecto, haz clic en "View Tasks"
+2. Para añadir una nueva tarea:
+   - Completa el formulario con título, descripción y fecha de vencimiento
+   - Selecciona el estado (pendiente, en progreso, completada, cancelada)
+   - Haz clic en "Save"
+3. Para editar una tarea, haz clic en el botón de edición
+4. Para eliminar una tarea, haz clic en el botón de eliminar
 
-### Advanced Configuration
+### Cierre de sesión
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Para cerrar sesión, haz clic en el botón "LOGOUT" en la barra superior.
 
-### Deployment
+## 🌐 Acceso a la aplicación
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+La aplicación está desplegada y accesible en la siguiente URL:
 
-### `npm run build` fails to minify
+[https://pi2-smarttask-frontend.onrender.com](https://pi2-smarttask-frontend.onrender.com)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## 🔄 Integración con el backend
+
+Este frontend se comunica con una API REST desplegada en:
+
+[https://smarttask-backend-tcsj.onrender.com](https://smarttask-backend-tcsj.onrender.com)
+
+## 📝 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 👨‍💻 Autores
+
+- Juan Sebastian Cifuentes Vallejo - 202179800
+- Hernán David Cisneros Vargas - 2178192
+- Santiago Duque Chacón - 202180099
+- Nicolas Fernando Huertas Cadavid - 202180569
+- Miguel Ángel Moreno Romero - 202125737
+- Kevin Alejandro Velez Agudelo - 2123281
