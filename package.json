@@ -2,6 +2,8 @@
   "name": "smarttask-frontend",
   "version": "1.0.0",
   "private": true,
+  "homepage": "/",
+  "proxy": "https://smarttask-backend-tcsj.onrender.com",
   "dependencies": {
     "serve": "^14.2.0",
     "axios": "^0.21.1",
@@ -13,6 +15,7 @@
     "sweetalert2": "^11.12.1"
   },
   "scripts": {
+    "dev": "react-scripts start",
     "start": "serve -s build",
     "build": "react-scripts build",
     "test": "react-scripts test",
