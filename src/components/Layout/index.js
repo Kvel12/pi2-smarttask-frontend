@@ -1,14 +1,22 @@
 import React from 'react';
 import { FaChartBar, FaList, FaSignOutAlt } from 'react-icons/fa';
+import VoiceAssistant from '../VoiceAssistant'; // Importamos el asistente virtual
 
 const Layout = ({ children, activePage, onPageChange, onLogout }) => {
+  // Función para manejar la creación de tareas desde el asistente
+  const handleVoiceTaskCreated = () => {
+    // Esta función se puede mejorar para actualizar los proyectos si es necesario
+    console.log("Tarea creada por voz desde el asistente global");
+    // Si tienes acceso a la función de actualización de proyectos, podrías llamarla aquí
+  };
+
   return (
     <div style={styles.container}>
       {/* Navbar superior */}
       <nav style={styles.navbar}>
         <h1 style={styles.title}>SmartTask Project Manager</h1>
         <button 
-          style={styles.logoutButton} 
+          style={styles.logoutButton}
           onClick={onLogout}
         >
           LOGOUT <FaSignOutAlt style={styles.icon} />
@@ -35,6 +43,9 @@ const Layout = ({ children, activePage, onPageChange, onLogout }) => {
       <div style={styles.content}>
         {children}
       </div>
+
+      {/* Asistente Virtual (ahora a nivel de Layout) */}
+      <VoiceAssistant onCreateTask={handleVoiceTaskCreated} />
     </div>
   );
 };

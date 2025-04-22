@@ -9,7 +9,7 @@ import Swal from 'sweetalert2';
 import taskImage from '../assets/tarea.png'; // Asegúrate de que la ruta sea correcta
 import VoiceProjectCreation from './VoiceProjectCreation'; // Componente de creación de proyectos por voz
 import VoiceTaskCreation from './VoiceTaskCreation'; // Componente de creación de tareas por voz
-import VoiceAssistant from './VoiceAssistant'; // Asistente virtual por voz
+// Eliminar la importación de VoiceAssistant ya que ahora está en Layout
 
 const ProjectList = ({ projects: initialProjects, onProjectUpdate }) => {
   const history = useHistory();
@@ -283,8 +283,7 @@ const ProjectList = ({ projects: initialProjects, onProjectUpdate }) => {
         />
       )}
 
-      {/* Asistente Virtual */}
-      <VoiceAssistant onCreateTask={handleVoiceTaskCreated} />
+      {/* Eliminamos la línea del VoiceAssistant ya que ahora está en el Layout */}
     </div>
   );
 };
