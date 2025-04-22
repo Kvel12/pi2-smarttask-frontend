@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaMicrophone, FaStop, FaSpinner } from 'react-icons/fa';
-import { convertSpeechToText } from '../api';
+import axios from 'axios';
+
+// Usar axios directamente en lugar de importar desde api.js para evitar posibles problemas
+const API_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
 
 const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -29,6 +32,15 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const startRecording = async () => {
     setError(null);
     try {
+      // Solicitar permisos de forma explícita primero
+      await navigator.permissions.query({ name: 'microphone' })
+        .then(permissionStatus => {
+          console.log('Estado del permiso de micrófono:', permissionStatus.state);
+        })
+        .catch(err => {
+          console.warn('No se pudo verificar el permiso:', err);
+        });
+
       // Configuración específica para obtener una grabación de audio de alta calidad
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -40,11 +52,28 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
         } 
       });
       
-      // Configurar el Media Recorder para grabación optimizada para Speech-to-Text
+      console.log('Stream de audio obtenido:', stream);
+      
+      // Verificar el tipo MIME soportado por el navegador
+      let mimeType = 'audio/webm';
+      
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+        mimeType = 'audio/ogg;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+        mimeType = 'audio/wav';
+      }
+      
+      console.log('Usando MIME type:', mimeType);
+      
+      // Configurar el Media Recorder con el tipo MIME soportado
       const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus', // Formato que funciona bien con Google Speech-to-Text
+        mimeType: mimeType,
         audioBitsPerSecond: 16000 // 16 kHz
       });
+      
+      console.log('MediaRecorder configurado:', recorder);
       
       // Configurar los manejadores de eventos
       recorder.addEventListener('dataavailable', handleDataAvailable);
@@ -54,15 +83,17 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       recorder.start();
       setMediaRecorder(recorder);
       setAudioChunks([]);
+      console.log('Grabación iniciada');
     } catch (err) {
       console.error('Error al iniciar la grabación:', err);
-      setError('No se pudo acceder al micrófono. Por favor, verifica los permisos.');
+      setError(`No se pudo acceder al micrófono: ${err.message}. Verifica los permisos.`);
       setIsRecording(false);
     }
   };
 
   const handleDataAvailable = (event) => {
     if (event.data.size > 0) {
+      console.log('Datos de audio disponibles:', event.data.size, 'bytes');
       setAudioChunks(prevChunks => [...prevChunks, event.data]);
     }
   };
@@ -71,11 +102,43 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
     setIsProcessing(true);
     
     try {
+      console.log('Grabación detenida, chunks de audio:', audioChunks.length);
+      
+      // Verificar que tenemos datos de audio
+      if (audioChunks.length === 0) {
+        throw new Error('No se capturaron datos de audio');
+      }
+      
       // Crear un blob con todos los chunks de audio
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+      const mimeType = mediaRecorder.mimeType || 'audio/webm';
+      const audioBlob = new Blob(audioChunks, { type: mimeType });
+      console.log('Blob de audio creado:', audioBlob.size, 'bytes, tipo:', audioBlob.type);
+      
+      // Para depuración: Crear una URL del audio grabado
+      const audioUrl = URL.createObjectURL(audioBlob);
+      console.log('URL del audio grabado (para depuración):', audioUrl);
+      
+      // Crear un FormData para enviar al backend
+      const formData = new FormData();
+      formData.append('audio', audioBlob, `recording.${mimeType.split('/')[1]}`);
+      
+      // Obtener el token de autenticación
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        throw new Error('No hay sesión activa');
+      }
+      
+      console.log('Enviando audio al servidor...');
       
       // Enviar al backend para procesamiento con Google Speech-to-Text
-      const response = await convertSpeechToText(audioBlob);
+      const response = await axios.post(`${API_URL}/speech/speech-to-text`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'x-auth-token': token
+        },
+      });
+      
+      console.log('Respuesta del servidor:', response.data);
       
       // Manejar la respuesta
       if (response.data && response.data.transcription) {
@@ -87,14 +150,17 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       }
     } catch (err) {
       console.error('Error al procesar el audio:', err);
-      setError('Error al procesar el audio. Inténtalo de nuevo.');
+      setError(`Error al procesar el audio: ${err.message}. Inténtalo de nuevo.`);
     } finally {
       setIsProcessing(false);
       setMediaRecorder(null);
       
       // Detener todas las pistas de audio para liberar el micrófono
       if (mediaRecorder && mediaRecorder.stream) {
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        mediaRecorder.stream.getTracks().forEach(track => {
+          track.stop();
+          console.log('Pista de audio detenida:', track.label);
+        });
       }
     }
   };

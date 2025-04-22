@@ -6,8 +6,9 @@ import Modal from './Modal';
 import ProjectForm from './ProjectForm';
 import TaskModal from './TaskModal';
 import taskImage from '../assets/tarea.png';
-import VoiceProjectCreation from './VoiceProjectCreation';
-import VoiceTaskCreation from './VoiceTaskCreation';
+// Importaciones condicionales para evitar errores
+const VoiceProjectCreation = React.lazy(() => import('./VoiceProjectCreation'));
+const VoiceTaskCreation = React.lazy(() => import('./VoiceTaskCreation'));
 
 const Projects = ({ projects, onProjectUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -119,17 +120,23 @@ const Projects = ({ projects, onProjectUpdate }) => {
 
       {/* Voice Components */}
       <div style={styles.voiceComponentsContainer}>
-        <VoiceProjectCreation onProjectCreated={handleVoiceProjectCreated} />
+        <React.Suspense fallback={<div>Cargando componente de voz...</div>}>
+          <VoiceProjectCreation onProjectCreated={handleVoiceProjectCreated} />
+        </React.Suspense>
         
         {selectedProject ? (
-          <VoiceTaskCreation 
-            onTaskCreated={handleVoiceTaskCreated} 
-            selectedProjectId={selectedProject.id} 
-          />
+          <React.Suspense fallback={<div>Cargando componente de voz...</div>}>
+            <VoiceTaskCreation 
+              onTaskCreated={handleVoiceTaskCreated} 
+              selectedProjectId={selectedProject.id} 
+            />
+          </React.Suspense>
         ) : (
-          <VoiceTaskCreation 
-            onTaskCreated={handleVoiceTaskCreated} 
-          />
+          <React.Suspense fallback={<div>Cargando componente de voz...</div>}>
+            <VoiceTaskCreation 
+              onTaskCreated={handleVoiceTaskCreated} 
+            />
+          </React.Suspense>
         )}
       </div>
       

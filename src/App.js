@@ -55,7 +55,6 @@ function App() {
       setError(null);
       const response = await fetchProjects();
       setProjects(response.data || []);
-      setIsLoading(false);
     } catch (error) {
       console.error('Error loading projects', error);
       // Si hay un error 401, probablemente el token expiró
@@ -69,6 +68,7 @@ function App() {
           text: 'There was a problem loading your projects.'
         });
       }
+    } finally {
       setIsLoading(false);
     }
   };
@@ -101,6 +101,20 @@ function App() {
     setIsLoggedIn(false);
   };
 
+  // Error boundary para capturar errores en componentes hijos
+  useEffect(() => {
+    const handleError = (event) => {
+      console.error('Error capturado por window.onerror:', event);
+      setError('Ocurrió un error en la aplicación. Por favor, recarga la página.');
+    };
+
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
+
   // Si está cargando, mostrar indicador de carga
   if (isLoading) {
     return (
@@ -130,7 +144,7 @@ function App() {
                 {error ? (
                   <div style={styles.errorContainer}>
                     <div style={styles.errorMessage}>
-                      <h3>Error Loading Data</h3>
+                      <h3>Error</h3>
                       <p>{error}</p>
                       <button 
                         style={styles.retryButton}
@@ -141,12 +155,22 @@ function App() {
                     </div>
                   </div>
                 ) : activePage === 'dashboard' ? (
-                  <Dashboard projects={projects} />
+                  <React.Suspense fallback={<div style={styles.loadingContainer}>
+                    <div style={styles.loadingSpinner}></div>
+                    <p>Loading Dashboard...</p>
+                  </div>}>
+                    <Dashboard projects={projects} />
+                  </React.Suspense>
                 ) : (
-                  <Projects 
-                    projects={projects} 
-                    onProjectUpdate={loadProjects} 
-                  />
+                  <React.Suspense fallback={<div style={styles.loadingContainer}>
+                    <div style={styles.loadingSpinner}></div>
+                    <p>Loading Projects...</p>
+                  </div>}>
+                    <Projects 
+                      projects={projects} 
+                      onProjectUpdate={loadProjects} 
+                    />
+                  </React.Suspense>
                 )}
               </Layout>
             )}
@@ -172,7 +196,7 @@ const styles = {
   loadingSpinner: {
     border: '5px solid #f3f3f3',
     borderTop: '5px solid #512da8',
-    borderRadius: '50%',
+    borderRadius: '50%',borderRadius: '50%',
     width: '50px',
     height: '50px',
     animation: 'spin 1s linear infinite',
