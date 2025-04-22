@@ -31,8 +31,7 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       
       // Crear MediaRecorder con configuración óptima
       const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 16000
+        mimeType: 'audio/webm;codecs=opus'
       });
       
       // Usar manejadores de eventos directos que modifican la ref (no el estado)

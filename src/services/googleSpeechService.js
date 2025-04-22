@@ -63,7 +63,6 @@ class GoogleSpeechService {
       const requestData = {
         config: {
           encoding: 'WEBM_OPUS',
-          sampleRateHertz: 16000,
           languageCode: 'es-ES',
           alternativeLanguageCodes: ['es-MX', 'es-CO', 'es-AR', 'es-CL', 'es-US'],
           enableAutomaticPunctuation: true,
