@@ -6,7 +6,6 @@ import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import ProjectList from './components/ProjectList';
 import Swal from 'sweetalert2';
-import ProjectList from './components/ProjectList';
 
 function App() {
   const [projects, setProjects] = useState([]);
