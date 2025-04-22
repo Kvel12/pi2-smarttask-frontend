@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { FaMicrophone, FaStop, FaSpinner } from 'react-icons/fa';
-import { convertSpeechToText } from '../api';
+import googleSpeechService from '../services/googleSpeechService';
 
 const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -30,7 +30,7 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       
       // Crear MediaRecorder con configuración óptima
       const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm',  // Simplifica a solo webm sin especificar el codec
+        mimeType: 'audio/webm;codecs=opus',
         audioBitsPerSecond: 16000
       });
       
@@ -57,17 +57,15 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
           
           console.log(`Blob de audio creado: ${audioBlob.size} bytes`);
           
-          // Enviar al backend para procesamiento con Google Speech-to-Text
-          const response = await convertSpeechToText(audioBlob);
+          // Usar el servicio de Google Speech-to-Text directamente desde el frontend
+          const transcription = await googleSpeechService.transcribeAudio(audioBlob);
+          console.log(`Transcripción recibida: "${transcription}"`);
           
-          if (response.data && response.data.transcription) {
-            console.log(`Transcripción recibida: "${response.data.transcription}"`);
-            if (onTranscriptionComplete) {
-              onTranscriptionComplete(response.data.transcription);
-            }
+          // Enviar la transcripción para procesamiento
+          if (onTranscriptionComplete && transcription) {
+            onTranscriptionComplete(transcription);
           } else {
-            console.error('Respuesta de transcripción inválida:', response.data);
-            setError('No se pudo procesar el audio.');
+            setError('No se pudo transcribir el audio');
           }
         } catch (err) {
           console.error('Error al procesar el audio:', err);
@@ -91,6 +89,7 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       mediaRecorderRef.current = recorder;
       
       console.log("Grabación iniciada correctamente");
+      setIsRecording(true);
     } catch (err) {
       console.error('Error al iniciar la grabación:', err);
       setError(`No se pudo acceder al micrófono: ${err.message}. Verifica los permisos.`);
@@ -110,7 +109,6 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
 
   const toggleRecording = () => {
     if (!isRecording) {
-      setIsRecording(true);
       startRecording();
     } else {
       stopRecording();

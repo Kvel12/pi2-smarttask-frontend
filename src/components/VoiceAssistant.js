@@ -55,7 +55,8 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  const handleTranscriptionComplete = async (text) => {
+// Dentro de la función handleTranscriptionComplete en VoiceAssistant.js
+const handleTranscriptionComplete = async (text) => {
     if (!text || text.trim() === '') {
       setMessages(prevMessages => [
         ...prevMessages, 
@@ -83,9 +84,9 @@ const VoiceAssistant = ({ onCreateTask }) => {
     ]);
     
     try {
-      // Enviar la transcripción al backend para procesarla
-      console.log("Enviando comando de voz al backend:", text);
-      const response = await processVoiceCommand(text, 'assistance');
+      // Usar el nuevo método que envía texto directamente
+      console.log("Enviando transcripción al backend:", text);
+      const response = await processVoiceText(text, 'assistance');
       console.log("Respuesta recibida:", response.data);
       
       // Eliminar el mensaje temporal de "pensando"
@@ -107,7 +108,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
         ]);
       }
     } catch (error) {
-      console.error('Error al procesar el comando de voz:', error);
+      console.error('Error al procesar la transcripción:', error);
       
       // Eliminar el mensaje temporal
       setMessages(prevMessages => 

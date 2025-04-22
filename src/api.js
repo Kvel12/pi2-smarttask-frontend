@@ -57,3 +57,12 @@ export const processVoiceCommand = (transcription, commandType = null, projectId
     projectId
   });
 };
+
+// Método para procesar texto transcrito directamente
+export const processVoiceText = (transcription, commandType = null, projectId = null) => {
+  return axios.post(`${API_URL}/speech/process-voice-text`, {
+    transcription,
+    commandType,
+    projectId
+  });
+};
