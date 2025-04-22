@@ -11,22 +11,24 @@ const VoiceAssistant = ({ onCreateTask }) => {
   const messagesEndRef = useRef(null);
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Cargar proyectos cuando se abre el asistente
   useEffect(() => {
     if (isOpen) {
       loadProjects();
     }
-  }, [isOpen]);
+  }, [isOpen, refreshTrigger]);
 
   const loadProjects = async () => {
     try {
       setIsLoading(true);
       const response = await fetchProjects();
+      console.log("Proyectos cargados:", response.data);
       setProjects(response.data || []);
       setIsLoading(false);
     } catch (error) {
-      console.error('Error loading projects:', error);
+      console.error('Error al cargar proyectos:', error);
       setIsLoading(false);
     }
   };
@@ -54,60 +56,46 @@ const VoiceAssistant = ({ onCreateTask }) => {
   };
 
   const handleTranscriptionComplete = async (text) => {
-    if (!text || text.trim() === '') return;
+    if (!text || text.trim() === '') {
+      setMessages(prevMessages => [
+        ...prevMessages, 
+        { 
+          role: 'assistant', 
+          content: 'No pude entender el audio. Por favor, intenta de nuevo hablando más claramente.' 
+        }
+      ]);
+      return;
+    }
     
     // Agregar el mensaje del usuario a la conversación
     const userMessage = { role: 'user', content: text };
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsWaitingForResponse(true);
     
+    // Agregar un mensaje de "pensando" para mejorar la experiencia
+    setMessages(prevMessages => [
+      ...prevMessages, 
+      { 
+        role: 'assistant', 
+        content: 'Procesando tu solicitud...',
+        isTemporary: true // Bandera para reemplazar este mensaje después
+      }
+    ]);
+    
     try {
       // Enviar la transcripción al backend para procesarla
+      console.log("Enviando comando de voz al backend:", text);
       const response = await processVoiceCommand(text, 'assistance');
+      console.log("Respuesta recibida:", response.data);
+      
+      // Eliminar el mensaje temporal de "pensando"
+      setMessages(prevMessages => 
+        prevMessages.filter(msg => !msg.isTemporary)
+      );
       
       // Verificar si la respuesta contiene una acción específica
-      if (response.data.action) {
-        switch (response.data.action) {
-          case 'createTask':
-            if (response.data.taskDetails && onCreateTask) {
-              onCreateTask(response.data.taskDetails);
-              
-              // Agregar mensaje de confirmación
-              setMessages(prevMessages => [
-                ...prevMessages, 
-                { 
-                  role: 'assistant', 
-                  content: `He creado una nueva tarea: "${response.data.taskDetails.title}"` 
-                }
-              ]);
-            }
-            break;
-            
-          case 'searchTasks':
-            // Lógica para buscar tareas
-            const searchResults = await handleSearchTasks(response.data.searchParams);
-            
-            // Mostrar resultados
-            setMessages(prevMessages => [
-              ...prevMessages, 
-              { 
-                role: 'assistant', 
-                content: `Encontré ${searchResults.length} tareas que coinciden con tu búsqueda.`,
-                searchResults 
-              }
-            ]);
-            break;
-            
-          default:
-            // Para otras acciones no específicas
-            setMessages(prevMessages => [
-              ...prevMessages, 
-              { 
-                role: 'assistant', 
-                content: response.data.response || 'Lo siento, no pude procesar tu solicitud.' 
-              }
-            ]);
-        }
+      if (response.data && response.data.action) {
+        handleActionResponse(response.data);
       } else {
         // Si es solo una respuesta informativa
         setMessages(prevMessages => [
@@ -121,12 +109,17 @@ const VoiceAssistant = ({ onCreateTask }) => {
     } catch (error) {
       console.error('Error al procesar el comando de voz:', error);
       
-      // Mensaje de error
+      // Eliminar el mensaje temporal
+      setMessages(prevMessages => 
+        prevMessages.filter(msg => !msg.isTemporary)
+      );
+      
+      // Agregar mensaje de error detallado
       setMessages(prevMessages => [
         ...prevMessages, 
         { 
           role: 'assistant', 
-          content: 'Lo siento, ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo.' 
+          content: `Lo siento, ocurrió un error: ${error.message || 'Error de conexión con el servidor'}. Por favor, inténtalo de nuevo.` 
         }
       ]);
     } finally {
@@ -134,44 +127,130 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  // Función para buscar tareas
-  const handleSearchTasks = async (searchParams) => {
-    try {
-      // Si tenemos projectId específico, buscar tareas de ese proyecto
-      if (searchParams.projectId) {
-        const response = await fetchTasksByProjectId(searchParams.projectId);
-        return filterTasks(response.data || [], searchParams);
-      } else {
-        // Si no, buscar tareas en todos los proyectos
-        const allTasks = [];
-        
-        for (const project of projects) {
-          const response = await fetchTasksByProjectId(project.id);
-          if (response.data && response.data.length > 0) {
-            // Añadir información del proyecto a cada tarea
-            const tasksWithProject = response.data.map(task => ({
-              ...task,
-              projectName: project.title
-            }));
-            allTasks.push(...tasksWithProject);
-          }
+  // Función para manejar diferentes tipos de acciones
+  const handleActionResponse = (data) => {
+    switch (data.action) {
+      case 'createTask':
+        if (data.taskDetails && onCreateTask) {
+          onCreateTask(data.taskDetails);
+          
+          // Agregar mensaje de confirmación
+          setMessages(prevMessages => [
+            ...prevMessages, 
+            { 
+              role: 'assistant', 
+              content: `He creado una nueva tarea: "${data.taskDetails.title}" ${data.taskDetails.projectName ? `en el proyecto "${data.taskDetails.projectName}"` : 'en el proyecto seleccionado'}` 
+            }
+          ]);
         }
+        break;
         
-        return filterTasks(allTasks, searchParams);
+      case 'createProject':
+        if (data.projectDetails) {
+          // Manejar resultados de creación de proyecto
+          setMessages(prevMessages => [
+            ...prevMessages, 
+            { 
+              role: 'assistant', 
+              content: `He creado un nuevo proyecto llamado "${data.projectDetails.title}"` 
+            }
+          ]);
+          
+          // Activar actualización de la lista de proyectos
+          setRefreshTrigger(prev => prev + 1);
+        }
+        break;
+        
+      case 'searchTasks':
+        handleSearchResults(data.searchResults || [], data.searchParams);
+        break;
+        
+      case 'error':
+        // Manejar casos de error específicos del backend
+        setMessages(prevMessages => [
+          ...prevMessages, 
+          { 
+            role: 'assistant', 
+            content: data.message || 'Ocurrió un error al procesar tu solicitud.' 
+          }
+        ]);
+        break;
+        
+      default:
+        // Para otras acciones no manejadas específicamente
+        setMessages(prevMessages => [
+          ...prevMessages, 
+          { 
+            role: 'assistant', 
+            content: data.response || 'He procesado tu solicitud.' 
+          }
+        ]);
+    }
+  };
+
+  // Función para manejar resultados de búsqueda
+  const handleSearchResults = async (searchResults, searchParams) => {
+    try {
+      let results = searchResults;
+      
+      // Si no se pasaron resultados pero sí parámetros, intentar buscar
+      if ((!results || results.length === 0) && searchParams) {
+        // Si tenemos projectId específico, buscar tareas de ese proyecto
+        if (searchParams.projectId) {
+          const response = await fetchTasksByProjectId(searchParams.projectId);
+          results = filterTasks(response.data || [], searchParams);
+        } else {
+          // Si no, buscar tareas en todos los proyectos
+          const allTasks = [];
+          
+          for (const project of projects) {
+            const response = await fetchTasksByProjectId(project.id);
+            if (response.data && response.data.length > 0) {
+              // Añadir información del proyecto a cada tarea
+              const tasksWithProject = response.data.map(task => ({
+                ...task,
+                projectName: project.title
+              }));
+              allTasks.push(...tasksWithProject);
+            }
+          }
+          
+          results = filterTasks(allTasks, searchParams);
+        }
       }
+      
+      // Mostrar resultados
+      setMessages(prevMessages => [
+        ...prevMessages, 
+        { 
+          role: 'assistant', 
+          content: results.length > 0 
+            ? `Encontré ${results.length} tareas que coinciden con tu búsqueda.`
+            : 'No encontré tareas que coincidan con tu búsqueda.',
+          searchResults: results 
+        }
+      ]);
     } catch (error) {
       console.error('Error al buscar tareas:', error);
-      return [];
+      setMessages(prevMessages => [
+        ...prevMessages, 
+        { 
+          role: 'assistant', 
+          content: 'Lo siento, ocurrió un error al buscar las tareas.' 
+        }
+      ]);
     }
   };
 
   // Función para filtrar tareas según los parámetros de búsqueda
   const filterTasks = (tasks, searchParams) => {
+    if (!searchParams) return tasks;
+    
     return tasks.filter(task => {
       // Filtrar por término de búsqueda (título o descripción)
       if (searchParams.searchTerm && 
-          !task.title.toLowerCase().includes(searchParams.searchTerm.toLowerCase()) &&
-          !task.description.toLowerCase().includes(searchParams.searchTerm.toLowerCase())) {
+          !task.title?.toLowerCase().includes(searchParams.searchTerm.toLowerCase()) &&
+          !task.description?.toLowerCase().includes(searchParams.searchTerm.toLowerCase())) {
         return false;
       }
       
@@ -213,7 +292,6 @@ const VoiceAssistant = ({ onCreateTask }) => {
     setInputMessage('');
   };
 
-  // Renderizado del componente
   return (
     <div>
       {/* Botón flotante para abrir/cerrar el asistente */}
@@ -262,7 +340,9 @@ const VoiceAssistant = ({ onCreateTask }) => {
                         <li key={taskIndex} style={styles.resultItem}>
                           <div style={styles.resultTitle}>{task.title}</div>
                           <div style={styles.resultDetails}>
-                            <span>Estado: {task.status}</span>
+                            <span>Estado: {task.status === 'pending' ? 'Pendiente' :
+                                          task.status === 'in_progress' ? 'En progreso' :
+                                          task.status === 'completed' ? 'Completada' : 'Cancelada'}</span>
                             {task.projectName && (
                               <span>Proyecto: {task.projectName}</span>
                             )}
