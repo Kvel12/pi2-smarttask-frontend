@@ -13,7 +13,7 @@ import VoiceProjectCreation from './VoiceProjectCreation'; // Importamos el comp
 import VoiceTaskCreation from './VoiceTaskCreation'; // Importamos el componente de creación de tareas por voz
 import VoiceAssistant from './VoiceAssistant'; // Importamos el asistente virtual por voz
 
-const Dashboard = ({ projects }) => {
+const DashboardComponent = ({ projects }) => {
   // No mostrar dashboard si no hay proyectos
   if (!projects || projects.length === 0) {
     return (
@@ -237,6 +237,7 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' o 'projects'
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [error, setError] = useState(null);
 
   // Función simplificada para redireccionar a la raíz/dominio principal
   const redirectToRoot = () => {
@@ -274,10 +275,12 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
   // Función para recargar proyectos si fuera necesario
   const refreshProjects = async () => {
     try {
+      setError(null);
       const response = await fetchProjects();
       setProjectList(response.data || []);
     } catch (error) {
       console.error('Error refreshing projects:', error);
+      setError('Error loading projects. Please try again.');
       if (error.response && error.response.status === 401) {
         // Token expirado o inválido
         redirectToRoot();
@@ -291,6 +294,11 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
       refreshProjects();
     }
   }, [refreshTrigger]);
+
+  // Cargar proyectos inicialmente
+  useEffect(() => {
+    refreshProjects();
+  }, []);
 
   const handleDelete = async (projectId) => {
     Swal.fire({
@@ -388,6 +396,11 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
     }, 50); // Un retraso mínimo para asegurar el orden de ejecución
   };
   
+  // Manejador de cambio de pestaña
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
+  
   // Función de logout mejorada
   const handleLogout = () => {
     Swal.fire({
@@ -481,6 +494,26 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
     return date instanceof Date && !isNaN(date) ? date.toLocaleDateString() : 'Invalid Date';
   };
 
+  if (error) {
+    return (
+      <div style={styles.errorContainer}>
+        <div style={styles.errorMessage}>
+          <h3>Error Loading Data</h3>
+          <p>{error}</p>
+          <button 
+            style={styles.retryButton}
+            onClick={() => {
+              setError(null);
+              setRefreshTrigger(prev => prev + 1);
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       <nav style={styles.navbar}>
@@ -499,13 +532,13 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
       <div style={styles.tabs}>
         <button 
           style={activeTab === 'dashboard' ? {...styles.tab, ...styles.activeTab} : styles.tab}
-          onClick={() => setActiveTab('dashboard')}
+          onClick={() => handleTabChange('dashboard')}
         >
           <FaChartBar style={styles.tabIcon} /> Dashboard
         </button>
         <button 
           style={activeTab === 'projects' ? {...styles.tab, ...styles.activeTab} : styles.tab}
-          onClick={() => setActiveTab('projects')}
+          onClick={() => handleTabChange('projects')}
         >
           <FaList style={styles.tabIcon} /> Projects
         </button>
@@ -515,7 +548,7 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
       <div style={styles.tabContent}>
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
-          <Dashboard projects={projectList} />
+          <DashboardComponent projects={projectList} />
         )}
         
         {/* Projects Tab */}
@@ -858,6 +891,31 @@ const styles = {
     borderRadius: '8px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     background: '#fff',
+  },
+  errorContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    backgroundColor: '#f5f5f5',
+  },
+  errorMessage: {
+    backgroundColor: '#fff',
+    padding: '30px',
+    borderRadius: '8px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+    textAlign: 'center',
+    maxWidth: '500px',
+  },
+  retryButton: {
+    backgroundColor: '#512da8',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '5px',
+    padding: '10px 20px',
+    marginTop: '20px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
   }
 };
 
