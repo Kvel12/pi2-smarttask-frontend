@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
-import ProjectList from './components/ProjectList';
 import LoginRegister from './components/LoginRegister';
 import { fetchProjects } from './api';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
+import Projects from './components/Projects';
 import Swal from 'sweetalert2';
 
 function App() {
   const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [activePage, setActivePage] = useState('dashboard');
+  const [error, setError] = useState(null);
 
   // Obtener URL base para redirecciones consistentes
   const getBaseUrl = () => {
@@ -35,10 +38,6 @@ function App() {
       setIsLoggedIn(true);
     } else {
       setIsLoggedIn(false);
-      
-      // Si no hay token y no estamos en la página de login, 
-      // mejor mantener la ruta actual para que el router se encargue
-      // en lugar de modificar la historia aquí
     }
     setIsLoading(false);
   };
@@ -53,6 +52,7 @@ function App() {
   const loadProjects = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const response = await fetchProjects();
       setProjects(response.data || []);
       setIsLoading(false);
@@ -62,6 +62,7 @@ function App() {
       if (error.response && error.response.status === 401) {
         handleSessionExpired();
       } else {
+        setError('Error loading projects. Please try again.');
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -92,35 +93,23 @@ function App() {
     setIsLoggedIn(true);
   };
 
-  // Componente para rutas privadas
-  const PrivateRoute = ({ children, ...rest }) => {
-    if (isLoading) {
-      return (
-        <div style={styles.loadingContainer}>
-          <div style={styles.loadingSpinner}></div>
-          <p>Loading...</p>
-        </div>
-      );
-    }
-
-    return (
-      <Route
-        {...rest}
-        render={({ location }) =>
-          isLoggedIn ? (
-            children
-          ) : (
-            <Redirect
-              to={{
-                pathname: "/login",
-                state: { from: location }
-              }}
-            />
-          )
-        }
-      />
-    );
+  const handlePageChange = (page) => {
+    setActivePage(page);
   };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
+  // Si está cargando, mostrar indicador de carga
+  if (isLoading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingSpinner}></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <Router>
@@ -129,15 +118,39 @@ function App() {
           <Route path="/login">
             {isLoggedIn ? <Redirect to="/" /> : <LoginRegister onLogin={handleLogin} />}
           </Route>
-          <PrivateRoute exact path="/">
-            <ProjectList
-              projects={projects}
-              onSelectProject={(project) => {
-                setSelectedProject(project);
-              }}
-              onDeleteProject={loadProjects}
-            />
-          </PrivateRoute>
+          <Route exact path="/">
+            {!isLoggedIn ? (
+              <Redirect to="/login" />
+            ) : (
+              <Layout 
+                activePage={activePage} 
+                onPageChange={handlePageChange}
+                onLogout={handleLogout}
+              >
+                {error ? (
+                  <div style={styles.errorContainer}>
+                    <div style={styles.errorMessage}>
+                      <h3>Error Loading Data</h3>
+                      <p>{error}</p>
+                      <button 
+                        style={styles.retryButton}
+                        onClick={loadProjects}
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                ) : activePage === 'dashboard' ? (
+                  <Dashboard projects={projects} />
+                ) : (
+                  <Projects 
+                    projects={projects} 
+                    onProjectUpdate={loadProjects} 
+                  />
+                )}
+              </Layout>
+            )}
+          </Route>
           <Route path="*">
             <Redirect to={isLoggedIn ? "/" : "/login"} />
           </Route>
@@ -164,6 +177,30 @@ const styles = {
     height: '50px',
     animation: 'spin 1s linear infinite',
     marginBottom: '20px',
+  },
+  errorContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+  },
+  errorMessage: {
+    backgroundColor: '#fff',
+    padding: '30px',
+    borderRadius: '8px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+    textAlign: 'center',
+    maxWidth: '500px',
+  },
+  retryButton: {
+    backgroundColor: '#512da8',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '5px',
+    padding: '10px 20px',
+    marginTop: '20px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
   },
   '@keyframes spin': {
     '0%': { transform: 'rotate(0deg)' },
