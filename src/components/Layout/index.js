@@ -1,6 +1,8 @@
 import React from 'react';
 import { FaChartBar, FaList, FaSignOutAlt } from 'react-icons/fa';
 import VoiceAssistant from '../VoiceAssistant'; // Importamos el asistente virtual
+import Swal from 'sweetalert2';
+import { logout } from '../../api';
 
 const Layout = ({ children, activePage, onPageChange, onLogout }) => {
   // Función para manejar la creación de tareas desde el asistente
@@ -8,6 +10,81 @@ const Layout = ({ children, activePage, onPageChange, onLogout }) => {
     // Esta función se puede mejorar para actualizar los proyectos si es necesario
     console.log("Tarea creada por voz desde el asistente global");
     // Si tienes acceso a la función de actualización de proyectos, podrías llamarla aquí
+  };
+
+  const handleLogout = () => {
+    Swal.fire({
+      title: 'Logout',
+      text: 'Are you sure you want to logout?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, logout!',
+      cancelButtonText: 'Cancel'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          // 1. Intentar llamar a API logout
+          try {
+            await logout();
+          } catch (error) {
+            console.warn("Logout API call failed, proceeding with local logout", error);
+          }
+          
+          // 2. Limpiar todos los tokens posibles
+          sessionStorage.removeItem('token');
+          localStorage.removeItem('token');
+          
+          // 3. Mostrar mensaje de éxito
+          Swal.fire({
+            title: 'Logged Out!', 
+            text: 'You have been successfully logged out.',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+          }).then(() => {
+            // 4. Redireccionar a la raíz
+            redirectToRoot();
+          });
+        } catch (error) {
+          console.error('Error during logout process:', error);
+          
+          // Asegurar limpieza de tokens incluso con error
+          sessionStorage.removeItem('token');
+          localStorage.removeItem('token');
+          
+          // Mostrar mensaje y redireccionar
+          Swal.fire({
+            title: 'Logged Out!', 
+            text: 'You have been logged out.',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+          }).then(() => {
+            redirectToRoot();
+          });
+        }
+      }
+    });
+  };
+  
+  // Agregar también esta función en Layout.js
+  const redirectToRoot = () => {
+    try {
+      // Redirigir directamente a la raíz del dominio
+      const baseUrl = window.location.origin;
+      
+      // Limpiar el historial para prevenir navegación "atrás"
+      window.history.replaceState(null, document.title, baseUrl);
+      
+      // Forzar una recarga completa
+      window.location.href = baseUrl;
+    } catch (error) {
+      console.error("Error during redirect:", error);
+      // Si todo falla, recarga la página en la ubicación actual
+      window.location.reload();
+    }
   };
 
   return (

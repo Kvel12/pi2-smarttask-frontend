@@ -55,8 +55,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-// Dentro de la función handleTranscriptionComplete en VoiceAssistant.js
-const handleTranscriptionComplete = async (text) => {
+  const handleTranscriptionComplete = async (text) => {
     if (!text || text.trim() === '') {
       setMessages(prevMessages => [
         ...prevMessages, 
@@ -74,9 +73,11 @@ const handleTranscriptionComplete = async (text) => {
     setIsWaitingForResponse(true);
     
     // Agregar un mensaje de "pensando" para mejorar la experiencia
+    const processingMessageId = Date.now().toString(); // Generamos un ID único para el mensaje
     setMessages(prevMessages => [
       ...prevMessages, 
       { 
+        id: processingMessageId,
         role: 'assistant', 
         content: 'Procesando tu solicitud...',
         isTemporary: true // Bandera para reemplazar este mensaje después
@@ -89,9 +90,9 @@ const handleTranscriptionComplete = async (text) => {
       const response = await processVoiceText(text, 'assistance');
       console.log("Respuesta recibida:", response.data);
       
-      // Eliminar el mensaje temporal de "pensando"
+      // Eliminar el mensaje temporal usando su ID único
       setMessages(prevMessages => 
-        prevMessages.filter(msg => !msg.isTemporary)
+        prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
       );
       
       // Verificar si la respuesta contiene una acción específica
@@ -103,16 +104,16 @@ const handleTranscriptionComplete = async (text) => {
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: response.data.response || 'Lo siento, no pude procesar tu solicitud.' 
+            content: response.data.message || response.data.response || 'Lo siento, no pude procesar tu solicitud.' 
           }
         ]);
       }
     } catch (error) {
       console.error('Error al procesar la transcripción:', error);
       
-      // Eliminar el mensaje temporal
+      // Eliminar el mensaje temporal usando su ID único
       setMessages(prevMessages => 
-        prevMessages.filter(msg => !msg.isTemporary)
+        prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
       );
       
       // Agregar mensaje de error detallado
@@ -127,52 +128,50 @@ const handleTranscriptionComplete = async (text) => {
       setIsWaitingForResponse(false);
     }
   };
-
-  // Función para manejar diferentes tipos de acciones
+  
+  // Añadir o actualizar la función handleActionResponse
   const handleActionResponse = (data) => {
     switch (data.action) {
       case 'createTask':
-        if (data.taskDetails && onCreateTask) {
-          onCreateTask(data.taskDetails);
-          
-          // Agregar mensaje de confirmación
-          setMessages(prevMessages => [
-            ...prevMessages, 
-            { 
-              role: 'assistant', 
-              content: `He creado una nueva tarea: "${data.taskDetails.title}" ${data.taskDetails.projectName ? `en el proyecto "${data.taskDetails.projectName}"` : 'en el proyecto seleccionado'}` 
-            }
-          ]);
-        }
-        break;
-        
-      case 'createProject':
-        if (data.projectDetails) {
-          // Manejar resultados de creación de proyecto
-          setMessages(prevMessages => [
-            ...prevMessages, 
-            { 
-              role: 'assistant', 
-              content: `He creado un nuevo proyecto llamado "${data.projectDetails.title}"` 
-            }
-          ]);
-          
-          // Activar actualización de la lista de proyectos
-          setRefreshTrigger(prev => prev + 1);
-        }
-        break;
-        
-      case 'searchTasks':
-        handleSearchResults(data.searchResults || [], data.searchParams);
-        break;
-        
-      case 'error':
-        // Manejar casos de error específicos del backend
+        // Mostrar mensaje de confirmación con detalles de la tarea creada
         setMessages(prevMessages => [
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: data.message || 'Ocurrió un error al procesar tu solicitud.' 
+            content: data.message || `Tarea creada: "${data.taskDetails.title}" en el proyecto "${data.taskDetails.projectName || 'seleccionado'}"` 
+          }
+        ]);
+        
+        // Actualizar los proyectos si es necesario
+        setRefreshTrigger(prev => prev + 1);
+        break;
+        
+      case 'createProject':
+        // Mostrar mensaje de confirmación con detalles del proyecto creado
+        setMessages(prevMessages => [
+          ...prevMessages, 
+          { 
+            role: 'assistant', 
+            content: data.message || `He creado un nuevo proyecto llamado "${data.projectDetails.title}"` 
+          }
+        ]);
+        
+        // Actualizar la lista de proyectos
+        setRefreshTrigger(prev => prev + 1);
+        break;
+        
+      case 'searchTasks':
+        // Manejar resultados de búsqueda
+        handleSearchResults(data.searchResults || [], data.searchParams);
+        break;
+        
+      case 'error':
+        // Manejar mensajes de error del backend
+        setMessages(prevMessages => [
+          ...prevMessages, 
+          { 
+            role: 'assistant', 
+            content: data.message || data.error || 'Ocurrió un error al procesar tu solicitud.' 
           }
         ]);
         break;
@@ -183,7 +182,7 @@ const handleTranscriptionComplete = async (text) => {
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: data.response || 'He procesado tu solicitud.' 
+            content: data.message || data.response || 'He procesado tu solicitud.' 
           }
         ]);
     }
