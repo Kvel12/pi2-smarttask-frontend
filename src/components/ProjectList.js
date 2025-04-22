@@ -199,23 +199,6 @@ const ProjectList = ({ projects: initialProjects, onProjectUpdate }) => {
           NEW PROJECT <FaPlus style={styles.icon} />
         </button>
       </div>
-      
-      {/* Componentes de voz */}
-      <div style={styles.voiceComponentsContainer}>
-        <VoiceProjectCreation onProjectCreated={handleVoiceProjectCreated} />
-        
-        {/* Si hay un proyecto seleccionado, mostrar el componente de creación de tareas con ese proyecto */}
-        {selectedProject ? (
-          <VoiceTaskCreation 
-            onTaskCreated={handleVoiceTaskCreated} 
-            selectedProjectId={selectedProject.id} 
-          />
-        ) : (
-          <VoiceTaskCreation 
-            onTaskCreated={handleVoiceTaskCreated} 
-          />
-        )}
-      </div>
         
       {/* Lista de proyectos */}
       {!projectList || projectList.length === 0 ? (
