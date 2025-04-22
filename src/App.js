@@ -4,8 +4,9 @@ import LoginRegister from './components/LoginRegister';
 import { fetchProjects } from './api';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
-import Projects from './components/Projects';
+import ProjectList from './components/ProjectList';
 import Swal from 'sweetalert2';
+import ProjectList from './components/ProjectList';
 
 function App() {
   const [projects, setProjects] = useState([]);
@@ -143,7 +144,7 @@ function App() {
                 ) : activePage === 'dashboard' ? (
                   <Dashboard projects={projects} />
                 ) : (
-                  <Projects 
+                  <ProjectList 
                     projects={projects} 
                     onProjectUpdate={loadProjects} 
                   />
