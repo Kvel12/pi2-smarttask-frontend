@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaMicrophone, FaStop, FaRobot, FaTimes, FaSpinner, FaArrowUp } from 'react-icons/fa';
 import VoiceRecorder from './VoiceRecorder';
-import { processVoiceCommand, fetchProjects, fetchTasksByProjectId } from '../api';
+import { processVoiceCommand, fetchProjects, fetchTasksByProjectId, processVoiceText } from '../api';
 
 const VoiceAssistant = ({ onCreateTask }) => {
   const [isOpen, setIsOpen] = useState(false);
