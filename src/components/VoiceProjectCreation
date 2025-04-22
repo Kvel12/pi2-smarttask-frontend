@@ -15,30 +15,10 @@ const VoiceProjectCreation = ({ onProjectCreated }) => {
     setProcessing(true);
     
     try {
-      // Crear prompt específico para analizar la transcripción y extraer detalles del proyecto
-      const prompt = `
-        Analiza esta transcripción de voz y extrae los detalles para crear un proyecto:
-        "${text}"
-        
-        Extrae la siguiente información:
-        - título del proyecto
-        - descripción (si existe)
-        - fecha de culminación (si existe, en formato YYYY-MM-DD)
-        - prioridad (alta/high, media/medium, baja/low)
-        
-        Devuelve solo un objeto JSON con esta estructura:
-        {
-          "title": "Título del proyecto",
-          "description": "Descripción",
-          "culmination_date": "YYYY-MM-DD",
-          "priority": "high/medium/low"
-        }
-        
-        Si no puedes identificar algún campo, déjalo como null. Si no puedes identificar el título, devuelve un error.
-      `;
-      
-      // Usar OpenAI para analizar la transcripción
+      console.log("Transcripción recibida:", text);
+      // Procesar comando de voz para crear proyecto
       const response = await processVoiceCommand(text, 'createProject');
+      console.log("Respuesta del servidor:", response.data);
       
       if (response.data && response.data.success) {
         setProjectDetails({
@@ -84,7 +64,8 @@ const VoiceProjectCreation = ({ onProjectCreated }) => {
         title: projectDetails.title,
         description: projectDetails.description,
         culmination_date: projectDetails.culmination_date,
-        priority: projectDetails.priority
+        priority: projectDetails.priority,
+        creation_date: new Date().toISOString()
       });
       
       Swal.fire({
