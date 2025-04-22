@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { FaMicrophone, FaStop, FaSpinner } from 'react-icons/fa';
 import googleSpeechService from '../services/googleSpeechService';
+import { processVoiceText } from '../api';
 
 const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -57,15 +58,34 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
           
           console.log(`Blob de audio creado: ${audioBlob.size} bytes`);
           
-          // Usar el servicio de Google Speech-to-Text directamente desde el frontend
-          const transcription = await googleSpeechService.transcribeAudio(audioBlob);
-          console.log(`Transcripción recibida: "${transcription}"`);
-          
-          // Enviar la transcripción para procesamiento
-          if (onTranscriptionComplete && transcription) {
-            onTranscriptionComplete(transcription);
-          } else {
-            setError('No se pudo transcribir el audio');
+          // Intentar usar Google Speech-to-Text directamente
+          try {
+            console.log("Enviando audio a Google Speech-to-Text...");
+            const transcription = await googleSpeechService.transcribeAudio(audioBlob);
+            console.log(`Transcripción recibida: "${transcription}"`);
+            
+            if (transcription && onTranscriptionComplete) {
+              onTranscriptionComplete(transcription);
+            } else {
+              throw new Error("No se recibió transcripción");
+            }
+          } catch (googleError) {
+            console.error("Error con Google Speech-to-Text:", googleError);
+            
+            // Intentar con Web Speech API como fallback
+            console.log("Intentando con Web Speech API...");
+            try {
+              const webTranscription = await useWebSpeechAPI();
+              if (webTranscription && onTranscriptionComplete) {
+                console.log(`Transcripción de Web Speech API: "${webTranscription}"`);
+                onTranscriptionComplete(webTranscription);
+              } else {
+                throw new Error("No se pudo transcribir con Web Speech API");
+              }
+            } catch (webSpeechError) {
+              console.error("Error con Web Speech API:", webSpeechError);
+              throw new Error(`No se pudo transcribir el audio: ${googleError.message}`);
+            }
           }
         } catch (err) {
           console.error('Error al procesar el audio:', err);
@@ -95,6 +115,41 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       setError(`No se pudo acceder al micrófono: ${err.message}. Verifica los permisos.`);
       setIsRecording(false);
     }
+  };
+
+  // Función para usar Web Speech API como fallback
+  const useWebSpeechAPI = () => {
+    return new Promise((resolve, reject) => {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        reject(new Error("Tu navegador no soporta reconocimiento de voz"));
+        return;
+      }
+      
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      
+      recognition.lang = 'es-ES';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log("Web Speech API transcripción: " + transcript);
+        resolve(transcript);
+      };
+      
+      recognition.onerror = (event) => {
+        console.error("Error en Web Speech API:", event.error);
+        reject(new Error(`Error en reconocimiento: ${event.error}`));
+      };
+      
+      recognition.onend = () => {
+        console.log("Web Speech API finalizado");
+      };
+      
+      // Iniciar reconocimiento
+      recognition.start();
+    });
   };
 
   const stopRecording = () => {
