@@ -30,7 +30,7 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       
       // Crear MediaRecorder con configuración óptima
       const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
+        mimeType: 'audio/webm',  // Simplifica a solo webm sin especificar el codec
         audioBitsPerSecond: 16000
       });
       
