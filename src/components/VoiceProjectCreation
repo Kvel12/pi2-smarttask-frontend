@@ -1,0 +1,330 @@
+import React, { useState } from 'react';
+import { FaMicrophone, FaPlus } from 'react-icons/fa';
+import VoiceRecorder from './VoiceRecorder';
+import { processVoiceCommand, createProject } from '../api';
+import Swal from 'sweetalert2';
+
+const VoiceProjectCreation = ({ onProjectCreated }) => {
+  const [transcription, setTranscription] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [projectDetails, setProjectDetails] = useState(null);
+  const [formVisible, setFormVisible] = useState(false);
+
+  const handleTranscriptionComplete = async (text) => {
+    setTranscription(text);
+    setProcessing(true);
+    
+    try {
+      // Crear prompt específico para analizar la transcripción y extraer detalles del proyecto
+      const prompt = `
+        Analiza esta transcripción de voz y extrae los detalles para crear un proyecto:
+        "${text}"
+        
+        Extrae la siguiente información:
+        - título del proyecto
+        - descripción (si existe)
+        - fecha de culminación (si existe, en formato YYYY-MM-DD)
+        - prioridad (alta/high, media/medium, baja/low)
+        
+        Devuelve solo un objeto JSON con esta estructura:
+        {
+          "title": "Título del proyecto",
+          "description": "Descripción",
+          "culmination_date": "YYYY-MM-DD",
+          "priority": "high/medium/low"
+        }
+        
+        Si no puedes identificar algún campo, déjalo como null. Si no puedes identificar el título, devuelve un error.
+      `;
+      
+      // Usar OpenAI para analizar la transcripción
+      const response = await processVoiceCommand(text, 'createProject');
+      
+      if (response.data && response.data.success) {
+        setProjectDetails({
+          title: response.data.projectDetails?.title || '',
+          description: response.data.projectDetails?.description || '',
+          culmination_date: response.data.projectDetails?.culmination_date || '',
+          priority: response.data.projectDetails?.priority || 'medium'
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: response.data?.error || 'No se pudo procesar el comando de voz'
+        });
+      }
+    } catch (error) {
+      console.error('Error al procesar la transcripción:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al procesar la transcripción'
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!projectDetails || !projectDetails.title) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El título del proyecto es obligatorio'
+      });
+      return;
+    }
+    
+    try {
+      setProcessing(true);
+      
+      // Crear proyecto en la base de datos
+      const response = await createProject({
+        title: projectDetails.title,
+        description: projectDetails.description,
+        culmination_date: projectDetails.culmination_date,
+        priority: projectDetails.priority
+      });
+      
+      Swal.fire({
+        icon: 'success',
+        title: '¡Proyecto creado!',
+        text: `El proyecto "${projectDetails.title}" ha sido creado exitosamente`
+      });
+      
+      // Resetear el formulario
+      setTranscription('');
+      setProjectDetails(null);
+      setFormVisible(false);
+      
+      // Notificar al componente padre
+      if (onProjectCreated) {
+        onProjectCreated(response.data);
+      }
+    } catch (error) {
+      console.error('Error al crear el proyecto:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.message || 'No se pudo crear el proyecto'
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div style={styles.container}>
+      <button 
+        style={styles.toggleButton}
+        onClick={() => setFormVisible(!formVisible)}
+      >
+        {formVisible 
+          ? "Cancelar creación por voz" 
+          : <><FaMicrophone style={styles.buttonIcon} /> Crear proyecto por voz</>
+        }
+      </button>
+      
+      {formVisible && (
+        <div style={styles.formContainer}>
+          <h3 style={styles.title}>Crear proyecto por voz</h3>
+          <p style={styles.instructions}>
+            Presiona el botón del micrófono y describe el proyecto que deseas crear.
+            <br />
+            <small>Ejemplo: "Crear un proyecto llamado Desarrollo Web con prioridad alta para el 15 de diciembre"</small>
+          </p>
+          
+          <div style={styles.recorderContainer}>
+            <VoiceRecorder onTranscriptionComplete={handleTranscriptionComplete} />
+          </div>
+          
+          {transcription && (
+            <div style={styles.transcriptionBox}>
+              <h4 style={styles.subtitle}>Transcripción:</h4>
+              <p style={styles.transcriptionText}>{transcription}</p>
+            </div>
+          )}
+          
+          {processing && (
+            <div style={styles.loadingMessage}>Procesando comando de voz...</div>
+          )}
+          
+          {projectDetails && (
+            <div style={styles.detailsBox}>
+              <h4 style={styles.subtitle}>Detalles del proyecto:</h4>
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Título:</span>
+                <span style={styles.detailValue}>{projectDetails.title}</span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Descripción:</span>
+                <span style={styles.detailValue}>
+                  {projectDetails.description || 'No especificada'}
+                </span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Fecha límite:</span>
+                <span style={styles.detailValue}>
+                  {projectDetails.culmination_date || 'No especificada'}
+                </span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Prioridad:</span>
+                <span style={{
+                  ...styles.detailValue,
+                  color: 
+                    projectDetails.priority === 'high' ? '#dc3545' :
+                    projectDetails.priority === 'medium' ? '#ffc107' : '#28a745'
+                }}>
+                  {projectDetails.priority === 'high' ? 'Alta' :
+                   projectDetails.priority === 'medium' ? 'Media' : 'Baja'}
+                </span>
+              </div>
+              
+              <div style={styles.actionButtons}>
+                <button 
+                  style={styles.createButton}
+                  onClick={handleCreateProject}
+                  disabled={processing}
+                >
+                  <FaPlus style={styles.buttonIcon} /> Crear proyecto
+                </button>
+                <button 
+                  style={styles.cancelButton}
+                  onClick={() => {
+                    setTranscription('');
+                    setProjectDetails(null);
+                  }}
+                  disabled={processing}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const styles = {
+  container: {
+    marginBottom: '20px',
+  },
+  toggleButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#512da8',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    padding: '10px 20px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    transition: 'background-color 0.3s ease',
+  },
+  buttonIcon: {
+    marginRight: '8px',
+  },
+  formContainer: {
+    marginTop: '15px',
+    padding: '20px',
+    backgroundColor: '#f9f9f9',
+    borderRadius: '8px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+  },
+  title: {
+    fontSize: '18px',
+    marginBottom: '15px',
+    color: '#512da8',
+  },
+  instructions: {
+    color: '#666',
+    marginBottom: '20px',
+    fontSize: '14px',
+  },
+  recorderContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: '20px',
+  },
+  transcriptionBox: {
+    padding: '15px',
+    backgroundColor: '#fff',
+    borderRadius: '5px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    marginBottom: '20px',
+  },
+  subtitle: {
+    fontSize: '16px',
+    marginBottom: '10px',
+    color: '#512da8',
+  },
+  transcriptionText: {
+    margin: 0,
+    color: '#333',
+  },
+  loadingMessage: {
+    textAlign: 'center',
+    color: '#666',
+    margin: '15px 0',
+    fontStyle: 'italic',
+  },
+  detailsBox: {
+    padding: '15px',
+    backgroundColor: '#fff',
+    borderRadius: '5px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  },
+  detailRow: {
+    display: 'flex',
+    margin: '10px 0',
+  },
+  detailLabel: {
+    fontWeight: 'bold',
+    width: '100px',
+    color: '#555',
+  },
+  detailValue: {
+    flex: 1,
+  },
+  actionButtons: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginTop: '20px',
+  },
+  createButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    padding: '10px 20px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    width: '48%',
+  },
+  cancelButton: {
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    padding: '10px 20px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    width: '48%',
+  },
+};
+
+export default VoiceProjectCreation;

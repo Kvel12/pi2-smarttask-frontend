@@ -37,3 +37,23 @@ export const deleteTask = (taskId) => axios.delete(`${API_URL}/tasks/${taskId}`)
 export const fetchTaskById = (taskId) => axios.get(`${API_URL}/tasks/${taskId}`);
 export const updateTask = (taskId, task) => axios.put(`${API_URL}/tasks/${taskId}`, task);
 export const fetchTasksByProjectId = (projectId) => axios.get(`${API_URL}/tasks/project/${projectId}`);
+
+// Nuevas funciones para Speech-to-Text
+export const convertSpeechToText = (audioBlob) => {
+  const formData = new FormData();
+  formData.append('audio', audioBlob);
+  
+  return axios.post(`${API_URL}/speech/speech-to-text`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
+export const processVoiceCommand = (transcription, commandType = null, projectId = null) => {
+  return axios.post(`${API_URL}/speech/process-voice-command`, {
+    transcription,
+    commandType,
+    projectId
+  });
+};

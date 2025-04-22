@@ -3,12 +3,15 @@ import { deleteProject, createProject, updateProject, fetchTasksByProjectId, log
 import { useHistory } from 'react-router-dom';
 import TaskList from './TaskList';
 import TaskModal from './TaskModal';
-import { FaPlus, FaEye, FaEdit, FaTrash, FaCalendarAlt, FaClock, FaExclamationCircle, FaSignOutAlt, FaChartBar, FaList, FaTasks } from 'react-icons/fa';
+import { FaPlus, FaEye, FaEdit, FaTrash, FaCalendarAlt, FaClock, FaExclamationCircle, FaSignOutAlt, FaChartBar, FaList, FaTasks, FaMicrophone } from 'react-icons/fa';
 import ProjectForm from './ProjectForm';
 import Modal from './Modal';
 import Swal from 'sweetalert2';
 import taskImage from '../assets/tarea.png'; // Asegúrate de que la ruta sea correcta
 import Chart from 'react-apexcharts';
+import VoiceProjectCreation from './VoiceProjectCreation'; // Importamos el componente de creación de proyectos por voz
+import VoiceTaskCreation from './VoiceTaskCreation'; // Importamos el componente de creación de tareas por voz
+import VoiceAssistant from './VoiceAssistant'; // Importamos el asistente virtual por voz
 
 const Dashboard = ({ projects }) => {
   // No mostrar dashboard si no hay proyectos
@@ -448,6 +451,17 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // Manejador para cuando se crea un proyecto por voz
+  const handleVoiceProjectCreated = (newProject) => {
+    setProjectList(prev => [...prev, newProject]);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  // Manejador para cuando se crea una tarea por voz
+  const handleVoiceTaskCreated = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   const getPriorityStyle = (priority) => {
     switch (priority) {
       case 'low':
@@ -507,6 +521,23 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
         {/* Projects Tab */}
         {activeTab === 'projects' && (
           <>
+            {/* Componentes de voz */}
+            <div style={styles.voiceComponentsContainer}>
+              <VoiceProjectCreation onProjectCreated={handleVoiceProjectCreated} />
+              
+              {/* Si hay un proyecto seleccionado, mostrar el componente de creación de tareas con ese proyecto */}
+              {selectedProject ? (
+                <VoiceTaskCreation 
+                  onTaskCreated={handleVoiceTaskCreated} 
+                  selectedProjectId={selectedProject.id} 
+                />
+              ) : (
+                <VoiceTaskCreation 
+                  onTaskCreated={handleVoiceTaskCreated} 
+                />
+              )}
+            </div>
+            
             {!projectList || projectList.length === 0 ? (
               <div style={styles.noProjectsMessage}>
                 <img src={taskImage} alt="No projects" style={styles.noProjectsImage} />
@@ -574,6 +605,9 @@ const ProjectList = ({ projects: initialProjects, onSelectProject, onDeleteProje
           onDeleteTask={handleTasksUpdate}
         />
       )}
+
+      {/* Asistente Virtual */}
+      <VoiceAssistant onCreateTask={handleVoiceTaskCreated} />
     </div>
   );
 };
@@ -661,6 +695,12 @@ const styles = {
   },
   tabContent: {
     padding: '20px',
+  },
+  voiceComponentsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    marginBottom: '20px',
   },
   projectList: {
     listStyle: 'none',
