@@ -281,11 +281,8 @@ const VoiceAssistant = ({ onCreateTask }) => {
   const handleSendMessage = () => {
     if (inputMessage.trim() === '') return;
     
-    // Agregar el mensaje del usuario a la conversación
-    const userMessage = { role: 'user', content: inputMessage };
-    setMessages(prevMessages => [...prevMessages, userMessage]);
-    
     // Procesar el mensaje como si fuera una transcripción de voz
+    // Sin añadir el mensaje previamente
     handleTranscriptionComplete(inputMessage);
     
     // Limpiar el input
