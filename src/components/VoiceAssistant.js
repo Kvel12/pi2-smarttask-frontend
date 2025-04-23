@@ -13,13 +13,14 @@ const VoiceAssistant = ({ onCreateTask }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Cargar proyectos cuando se abre el asistente
+  // Carga los proyectos al abrirse (isOpen) o cuando se dispara una recarga explícita (refreshTrigger).
   useEffect(() => {
     if (isOpen) {
       loadProjects();
     }
   }, [isOpen, refreshTrigger]);
 
+  // Intenta cargar los proyectos de forma asíncrona, gestionando el estado de carga y los posibles errores.
   const loadProjects = async () => {
     try {
       setIsLoading(true);
@@ -33,15 +34,17 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  // Efecto para hacer scroll al final de los mensajes cuando se añaden nuevos
+  // Desplaza la vista al final de la lista de mensajes cada vez que la lista se actualiza.
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // Desplaza suavemente la vista hasta el elemento referenciado (último mensaje) para mantener el foco en los mensajes recientes.
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Cambia la visibilidad del asistente y, al abrirse, muestra un mensaje de bienvenida.
   const toggleAssistant = () => {
     setIsOpen(!isOpen);
     if (!isOpen) {
@@ -55,6 +58,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
+  // Procesa el texto transcrito del audio, respondiendo con un mensaje de error si está vacío o en blanco.
   const handleTranscriptionComplete = async (text) => {
     if (!text || text.trim() === '') {
       setMessages(prevMessages => [
@@ -188,7 +192,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  // Función para manejar resultados de búsqueda
+  // Gestiona la búsqueda de tareas, ya sea utilizando resultados preexistentes o realizando una nueva búsqueda basada en parámetros.  
   const handleSearchResults = async (searchResults, searchParams) => {
     try {
       let results = searchResults;
@@ -242,7 +246,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  // Función para filtrar tareas según los parámetros de búsqueda
+  // Filtra una lista de tareas basándose en los parámetros de búsqueda proporcionados.
   const filterTasks = (tasks, searchParams) => {
     if (!searchParams) return tasks;
     
@@ -278,6 +282,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
     });
   };
 
+  // Envía el mensaje escrito por el usuario, procesándolo como si fuera una transcripción de voz y limpiando el input.
   const handleSendMessage = () => {
     if (inputMessage.trim() === '') return;
     
@@ -289,6 +294,21 @@ const VoiceAssistant = ({ onCreateTask }) => {
     setInputMessage('');
   };
 
+    // Este componente funcional representa la interfaz de un asistente virtual llamado "SmartTask".
+  // Incluye un botón flotante para abrir y cerrar la ventana del asistente, una cabecera con el título y un botón de cierre,
+  // un contenedor para mostrar la conversación entre el usuario y el asistente (mensajes), un área de entrada de texto con un botón de envío,
+  // un componente para la grabación de voz, y un indicador de carga que se muestra mientras se espera una respuesta del backend.
+  // La lógica para la interacción con el asistente (como el envío de mensajes de texto o voz, la recepción y visualización de respuestas,
+  // y la búsqueda de tareas) se maneja mediante los diversos 'handlers' y estados definidos en el componente funcional (no mostrados directamente en este fragmento).
+  // Los estilos visuales se definen en el objeto 'styles' y se aplican inline a los diferentes elementos del JSX.
+  // Cuando el asistente está abierto (isOpen es true), se renderiza la ventana principal con la conversación y los controles de entrada.
+  // La lista de mensajes se mapea para mostrar cada mensaje con su respectivo estilo (usuario o asistente),
+  // y si un mensaje del asistente contiene resultados de búsqueda, se renderiza una lista formateada de esas tareas.
+  // Un 'ref' (messagesEndRef) se utiliza para desplazar automáticamente la vista al último mensaje cuando la conversación se actualiza.
+  // El área de entrada permite al usuario escribir mensajes y enviarlos presionando Enter o haciendo clic en el botón de envío.
+  // El componente 'VoiceRecorder' (no mostrado aquí) se encarga de la funcionalidad de grabación y transcripción de voz.
+  // El indicador de carga se muestra condicionalmente cuando 'isWaitingForResponse' es true, proporcionando feedback visual al usuario durante el procesamiento.
+  // Finalmente, se definen estilos locales usando 'jsx' para una animación de "spin" en el indicador de carga.
   return (
     <div>
       {/* Botón flotante para abrir/cerrar el asistente */}

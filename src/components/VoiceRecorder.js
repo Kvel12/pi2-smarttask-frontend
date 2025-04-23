@@ -10,6 +10,9 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
+  // Inicia el proceso de grabación de audio desde el micrófono del usuario,
+  // configurando los parámetros de audio para una óptima transcripción con Speech-to-Text.
+  // Primero, restablece cualquier error previo y limpia el buffer de audio existente.
   const startRecording = async () => {
     setError(null);
     audioChunksRef.current = []; // Limpiar chunks existentes
@@ -116,7 +119,9 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
     }
   };
 
-  // Función para usar Web Speech API como fallback
+  // Función asíncrona que utiliza la API de reconocimiento de voz del navegador (Web Speech API)
+  // para transcribir audio a texto. Retorna una Promesa que se resuelve con la transcripción
+  // o se rechaza con un error si el navegador no soporta la API o si ocurre un error durante el reconocimiento.
   const useWebSpeechAPI = () => {
     return new Promise((resolve, reject) => {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -151,6 +156,9 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
     });
   };
 
+  // Detiene la grabación de audio si hay un MediaRecorder activo.
+  // Primero, solicita cualquier dato restante que aún no haya sido entregado
+  // a través del evento 'dataavailable', y luego detiene la grabación.
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       console.log("Solicitando datos finales antes de detener grabación");
@@ -161,6 +169,8 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
     }
   };
 
+  // Alterna el estado de la grabación de audio. Si no está grabando, inicia la grabación;
+  // si está grabando, detiene la grabación.
   const toggleRecording = () => {
     if (!isRecording) {
       startRecording();
@@ -169,6 +179,34 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
     }
   };
 
+  // Este componente funcional 'VoiceRecorder' encapsula la lógica para grabar audio del micrófono del usuario
+  // y transcribirlo a texto, utilizando tanto la API de Google Speech-to-Text (si está configurada)
+  // como la API nativa del navegador Web Speech API como alternativa.
+  //
+  // Utiliza Refs ('audioChunksRef' y 'mediaRecorderRef') para gestionar los chunks de audio grabados
+  // y la instancia del MediaRecorder, respectivamente, sin depender directamente del ciclo de renderizado
+  // para almacenar estos datos temporales.
+  //
+  // El estado local ('isRecording', 'isProcessing', 'error') se utiliza para controlar la interfaz de usuario,
+  // indicando si la grabación está activa, si el audio se está procesando o si ha ocurrido algún error.
+  //
+  // La función principal 'startRecording' inicia la grabación tras solicitar permiso al usuario para acceder al micrófono,
+  // configura el MediaRecorder con parámetros optimizados para el reconocimiento de voz (mono, 16kHz, etc.),
+  // y adjunta listeners para los eventos 'dataavailable' (para recibir los chunks de audio) y 'stop' (para procesar el audio al finalizar la grabación).
+  //
+  // En el evento 'stop', el audio grabado se convierte en un Blob y se intenta transcribir primero con Google Speech-to-Text.
+  // Si esto falla, se intenta con la Web Speech API como fallback. La transcripción resultante se pasa a la función
+  // 'onTranscriptionComplete' proporcionada como prop al componente.
+  //
+  // La función 'stopRecording' detiene la grabación en curso, solicitando primero cualquier dato restante.
+  //
+  // La función 'toggleRecording' actúa como un interruptor para iniciar o detener la grabación basándose en el estado actual.
+  //
+  // La función 'useWebSpeechAPI' es una promesa que encapsula la lógica para utilizar la API de reconocimiento de voz del navegador.
+  //
+  // La interfaz de usuario renderiza un botón que, al hacer clic, activa la función 'toggleRecording'.
+  // Mientras la grabación está activa, el texto del botón cambia para indicar que se puede detener.
+  // Si ocurre un error durante la grabación o el procesamiento, se muestra un mensaje de error.
   return (
     <div style={styles.voiceRecorder}>
       <button 
