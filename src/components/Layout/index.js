@@ -94,7 +94,7 @@ const Layout = ({ children, activePage, onPageChange, onLogout }) => {
         <h1 style={styles.title}>SmartTask Project Manager</h1>
         <button 
           style={styles.logoutButton}
-          onClick={onLogout}
+          onClick={handleLogout}
         >
           LOGOUT <FaSignOutAlt style={styles.icon} />
         </button>
