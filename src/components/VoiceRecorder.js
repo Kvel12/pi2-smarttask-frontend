@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { FaMicrophone, FaStop, FaSpinner } from 'react-icons/fa';
-import googleSpeechService from '../services/googleSpeechService';
-import { processVoiceText } from '../api';
+import { convertSpeechToText } from '../api';
 
 const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -10,43 +9,37 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
-  // Inicia el proceso de grabación de audio desde el micrófono del usuario,
-  // configurando los parámetros de audio para una óptima transcripción con Speech-to-Text.
-  // Primero, restablece cualquier error previo y limpia el buffer de audio existente.
+  // Iniciar grabación
   const startRecording = async () => {
     setError(null);
-    audioChunksRef.current = []; // Limpiar chunks existentes
+    audioChunksRef.current = [];
     
     try {
-      console.log("Solicitando acceso al micrófono...");
-      // Solicitar acceso al micrófono con configuración optimizada para Speech-to-Text
+      console.log("🎤 Solicitando acceso al micrófono...");
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
-          channelCount: 1, // Mono para mejor compatibilidad con Google STT
-          sampleRate: 16000, // 16 kHz es la frecuencia recomendada por Google
+          channelCount: 1,
+          sampleRate: 16000,
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         } 
       });
       
-      console.log("Acceso al micrófono concedido, configurando MediaRecorder...");
+      console.log("✅ Acceso al micrófono concedido");
       
-      // Crear MediaRecorder con configuración óptima
       const recorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
       });
       
-      // Usar manejadores de eventos directos que modifican la ref (no el estado)
-      recorder.addEventListener('dataavailable', (event) => {
+      recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
-          console.log(`Chunk de audio agregado: ${event.data.size} bytes, total chunks: ${audioChunksRef.current.length}`);
         }
-      });
+      };
       
-      recorder.addEventListener('stop', async () => {
-        console.log(`Grabación detenida, procesando ${audioChunksRef.current.length} chunks de audio`);
+      recorder.onstop = async () => {
+        console.log("🛑 Grabación detenida, procesando audio...");
         setIsProcessing(true);
         
         try {
@@ -58,119 +51,55 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
             type: 'audio/webm;codecs=opus' 
           });
           
-          console.log(`Blob de audio creado: ${audioBlob.size} bytes`);
+          console.log(`📦 Audio blob creado: ${audioBlob.size} bytes`);
           
-          // Intentar usar Google Speech-to-Text directamente
-          try {
-            console.log("Enviando audio a Google Speech-to-Text...");
-            const transcription = await googleSpeechService.transcribeAudio(audioBlob);
-            console.log(`Transcripción recibida: "${transcription}"`);
-            
-            if (transcription && onTranscriptionComplete) {
-              onTranscriptionComplete(transcription);
-            } else {
-              throw new Error("No se recibió transcripción");
-            }
-          } catch (googleError) {
-            console.error("Error con Google Speech-to-Text:", googleError);
-            
-            // Intentar con Web Speech API como fallback
-            console.log("Intentando con Web Speech API...");
-            try {
-              const webTranscription = await useWebSpeechAPI();
-              if (webTranscription && onTranscriptionComplete) {
-                console.log(`Transcripción de Web Speech API: "${webTranscription}"`);
-                onTranscriptionComplete(webTranscription);
-              } else {
-                throw new Error("No se pudo transcribir con Web Speech API");
-              }
-            } catch (webSpeechError) {
-              console.error("Error con Web Speech API:", webSpeechError);
-              throw new Error(`No se pudo transcribir el audio: ${googleError.message}`);
-            }
+          // Enviar al BACKEND para transcripción
+          console.log("📡 Enviando audio al backend...");
+          const response = await convertSpeechToText(audioBlob);
+          const transcription = response.data.transcription;
+          
+          console.log(`✅ Transcripción recibida: "${transcription}"`);
+          
+          if (transcription && onTranscriptionComplete) {
+            onTranscriptionComplete(transcription);
+          } else {
+            throw new Error("No se recibió transcripción del backend");
           }
+          
         } catch (err) {
-          console.error('Error al procesar el audio:', err);
-          setError(`Error al procesar el audio: ${err.message}`);
+          console.error('❌ Error al procesar audio:', err);
+          setError(err.response?.data?.error || err.message || 'Error al procesar el audio');
         } finally {
           setIsProcessing(false);
           setIsRecording(false);
           
           // Liberar el micrófono
-          if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-          }
-          
-          mediaRecorderRef.current = null;
+          stream.getTracks().forEach(track => track.stop());
         }
-      });
+      };
       
-      // Iniciar con timeslice para asegurar que dataavailable se dispare frecuentemente
-      console.log("Iniciando grabación...");
-      recorder.start(1000); // Disparar dataavailable cada 1 segundo
+      recorder.start(1000);
       mediaRecorderRef.current = recorder;
-      
-      console.log("Grabación iniciada correctamente");
       setIsRecording(true);
+      
+      console.log("▶️ Grabación iniciada");
     } catch (err) {
-      console.error('Error al iniciar la grabación:', err);
-      setError(`No se pudo acceder al micrófono: ${err.message}. Verifica los permisos.`);
+      console.error('❌ Error al iniciar grabación:', err);
+      setError('No se pudo acceder al micrófono. Verifica los permisos.');
       setIsRecording(false);
     }
   };
 
-  // Función asíncrona que utiliza la API de reconocimiento de voz del navegador (Web Speech API)
-  // para transcribir audio a texto. Retorna una Promesa que se resuelve con la transcripción
-  // o se rechaza con un error si el navegador no soporta la API o si ocurre un error durante el reconocimiento.
-  const useWebSpeechAPI = () => {
-    return new Promise((resolve, reject) => {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        reject(new Error("Tu navegador no soporta reconocimiento de voz"));
-        return;
-      }
-      
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      
-      recognition.lang = 'es-ES';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        console.log("Web Speech API transcripción: " + transcript);
-        resolve(transcript);
-      };
-      
-      recognition.onerror = (event) => {
-        console.error("Error en Web Speech API:", event.error);
-        reject(new Error(`Error en reconocimiento: ${event.error}`));
-      };
-      
-      recognition.onend = () => {
-        console.log("Web Speech API finalizado");
-      };
-      
-      // Iniciar reconocimiento
-      recognition.start();
-    });
-  };
-
-  // Detiene la grabación de audio si hay un MediaRecorder activo.
-  // Primero, solicita cualquier dato restante que aún no haya sido entregado
-  // a través del evento 'dataavailable', y luego detiene la grabación.
+  // Detener grabación
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      console.log("Solicitando datos finales antes de detener grabación");
-      // Asegurar que obtenemos cualquier dato restante
+      console.log("⏸️ Solicitando detener grabación...");
       mediaRecorderRef.current.requestData();
-      // Luego detener la grabación
       mediaRecorderRef.current.stop();
     }
   };
 
-  // Alterna el estado de la grabación de audio. Si no está grabando, inicia la grabación;
-  // si está grabando, detiene la grabación.
+  // Toggle grabación
   const toggleRecording = () => {
     if (!isRecording) {
       startRecording();
@@ -179,34 +108,6 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
     }
   };
 
-  // Este componente funcional 'VoiceRecorder' encapsula la lógica para grabar audio del micrófono del usuario
-  // y transcribirlo a texto, utilizando tanto la API de Google Speech-to-Text (si está configurada)
-  // como la API nativa del navegador Web Speech API como alternativa.
-  //
-  // Utiliza Refs ('audioChunksRef' y 'mediaRecorderRef') para gestionar los chunks de audio grabados
-  // y la instancia del MediaRecorder, respectivamente, sin depender directamente del ciclo de renderizado
-  // para almacenar estos datos temporales.
-  //
-  // El estado local ('isRecording', 'isProcessing', 'error') se utiliza para controlar la interfaz de usuario,
-  // indicando si la grabación está activa, si el audio se está procesando o si ha ocurrido algún error.
-  //
-  // La función principal 'startRecording' inicia la grabación tras solicitar permiso al usuario para acceder al micrófono,
-  // configura el MediaRecorder con parámetros optimizados para el reconocimiento de voz (mono, 16kHz, etc.),
-  // y adjunta listeners para los eventos 'dataavailable' (para recibir los chunks de audio) y 'stop' (para procesar el audio al finalizar la grabación).
-  //
-  // En el evento 'stop', el audio grabado se convierte en un Blob y se intenta transcribir primero con Google Speech-to-Text.
-  // Si esto falla, se intenta con la Web Speech API como fallback. La transcripción resultante se pasa a la función
-  // 'onTranscriptionComplete' proporcionada como prop al componente.
-  //
-  // La función 'stopRecording' detiene la grabación en curso, solicitando primero cualquier dato restante.
-  //
-  // La función 'toggleRecording' actúa como un interruptor para iniciar o detener la grabación basándose en el estado actual.
-  //
-  // La función 'useWebSpeechAPI' es una promesa que encapsula la lógica para utilizar la API de reconocimiento de voz del navegador.
-  //
-  // La interfaz de usuario renderiza un botón que, al hacer clic, activa la función 'toggleRecording'.
-  // Mientras la grabación está activa, el texto del botón cambia para indicar que se puede detener.
-  // Si ocurre un error durante la grabación o el procesamiento, se muestra un mensaje de error.
   return (
     <div style={styles.voiceRecorder}>
       <button 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import LoginRegister from './components/LoginRegister';
 import { fetchProjects } from './api';
@@ -7,12 +7,34 @@ import Dashboard from './components/Dashboard';
 import ProjectList from './components/ProjectList';
 import Swal from 'sweetalert2';
 
+// Al principio del archivo, después de los imports
+console.log('🔍 DEBUG - Variables de entorno:');
+console.log('REACT_APP_ENVIRONMENT:', process.env.REACT_APP_ENVIRONMENT);
+console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('Todas las env:', process.env);
+
+// ==================== CONTEXT API ====================
+// Crear contexto global para proyectos y actualización
+export const AppContext = createContext();
+
+// Hook personalizado para usar el contexto
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp debe usarse dentro de AppProvider');
+  }
+  return context;
+};
+// ====================================================
+
 function App() {
   const [projects, setProjects] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activePage, setActivePage] = useState('dashboard');
   const [error, setError] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Obtener URL base para redirecciones consistentes
   const getBaseUrl = () => {
@@ -42,20 +64,19 @@ function App() {
     setIsLoading(false);
   };
 
-  // Cargar proyectos cuando el usuario inicia sesión
+  // Cargar proyectos cuando el usuario inicia sesión o cuando se dispara refresh
   useEffect(() => {
     if (isLoggedIn) {
       loadProjects();
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, refreshTrigger]);
 
   const loadProjects = async () => {
     try {
-      setIsLoading(true);
       setError(null);
       const response = await fetchProjects();
       setProjects(response.data || []);
-      setIsLoading(false);
+      console.log('✅ Proyectos cargados:', response.data.length);
     } catch (error) {
       console.error('Error loading projects', error);
       // Si hay un error 401, probablemente el token expiró
@@ -69,13 +90,18 @@ function App() {
           text: 'There was a problem loading your projects.'
         });
       }
-      setIsLoading(false);
     }
+  };
+
+  // Función para refrescar proyectos desde cualquier componente
+  const refreshProjects = () => {
+    console.log('🔄 Refrescando proyectos...');
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleSessionExpired = () => {
     sessionStorage.removeItem('token');
-    localStorage.removeItem('token'); // Por si acaso
+    localStorage.removeItem('token');
     setIsLoggedIn(false);
     
     Swal.fire({
@@ -83,7 +109,6 @@ function App() {
       title: 'Session Expired',
       text: 'Your session has expired. Please login again.'
     }).then(() => {
-      // Redirigir a la raíz del sitio
       window.history.replaceState(null, document.title, getBaseUrl());
       window.location.href = getBaseUrl();
     });
@@ -111,52 +136,62 @@ function App() {
     );
   }
 
+  // Valor del contexto que se compartirá con todos los componentes
+  const contextValue = {
+    projects,
+    refreshProjects,
+    loadProjects,
+    isLoading
+  };
+
   return (
-    <Router>
-      <div>
-        <Switch>
-          <Route path="/login">
-            {isLoggedIn ? <Redirect to="/" /> : <LoginRegister onLogin={handleLogin} />}
-          </Route>
-          <Route exact path="/">
-            {!isLoggedIn ? (
-              <Redirect to="/login" />
-            ) : (
-              <Layout 
-                activePage={activePage} 
-                onPageChange={handlePageChange}
-                onLogout={handleLogout}
-              >
-                {error ? (
-                  <div style={styles.errorContainer}>
-                    <div style={styles.errorMessage}>
-                      <h3>Error Loading Data</h3>
-                      <p>{error}</p>
-                      <button 
-                        style={styles.retryButton}
-                        onClick={loadProjects}
-                      >
-                        Try Again
-                      </button>
+    <AppContext.Provider value={contextValue}>
+      <Router>
+        <div>
+          <Switch>
+            <Route path="/login">
+              {isLoggedIn ? <Redirect to="/" /> : <LoginRegister onLogin={handleLogin} />}
+            </Route>
+            <Route exact path="/">
+              {!isLoggedIn ? (
+                <Redirect to="/login" />
+              ) : (
+                <Layout 
+                  activePage={activePage} 
+                  onPageChange={handlePageChange}
+                  onLogout={handleLogout}
+                >
+                  {error ? (
+                    <div style={styles.errorContainer}>
+                      <div style={styles.errorMessage}>
+                        <h3>Error Loading Data</h3>
+                        <p>{error}</p>
+                        <button 
+                          style={styles.retryButton}
+                          onClick={loadProjects}
+                        >
+                          Try Again
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ) : activePage === 'dashboard' ? (
-                  <Dashboard projects={projects} />
-                ) : (
-                  <ProjectList 
-                    projects={projects} 
-                    onProjectUpdate={loadProjects} 
-                  />
-                )}
-              </Layout>
-            )}
-          </Route>
-          <Route path="*">
-            <Redirect to={isLoggedIn ? "/" : "/login"} />
-          </Route>
-        </Switch>
-      </div>
-    </Router>
+                  ) : activePage === 'dashboard' ? (
+                    <Dashboard projects={projects} />
+                  ) : (
+                    <ProjectList 
+                      projects={projects} 
+                      onProjectUpdate={refreshProjects}
+                    />
+                  )}
+                </Layout>
+              )}
+            </Route>
+            <Route path="*">
+              <Redirect to={isLoggedIn ? "/" : "/login"} />
+            </Route>
+          </Switch>
+        </div>
+      </Router>
+    </AppContext.Provider>
   );
 }
 
@@ -201,10 +236,6 @@ const styles = {
     marginTop: '20px',
     cursor: 'pointer',
     fontWeight: 'bold',
-  },
-  '@keyframes spin': {
-    '0%': { transform: 'rotate(0deg)' },
-    '100%': { transform: 'rotate(360deg)' },
   }
 };
 

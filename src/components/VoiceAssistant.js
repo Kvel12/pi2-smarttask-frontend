@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaMicrophone, FaStop, FaRobot, FaTimes, FaSpinner, FaArrowUp } from 'react-icons/fa';
 import VoiceRecorder from './VoiceRecorder';
 import { processVoiceCommand, fetchProjects, fetchTasksByProjectId, processVoiceText } from '../api';
+import { useApp } from '../App'; // Importar el contexto
 
 const VoiceAssistant = ({ onCreateTask }) => {
+  const { refreshProjects } = useApp(); // Obtener función de refresh
+  
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
@@ -11,21 +14,18 @@ const VoiceAssistant = ({ onCreateTask }) => {
   const messagesEndRef = useRef(null);
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Carga los proyectos al abrirse (isOpen) o cuando se dispara una recarga explícita (refreshTrigger).
+  // Cargar proyectos al abrir
   useEffect(() => {
     if (isOpen) {
       loadProjects();
     }
-  }, [isOpen, refreshTrigger]);
+  }, [isOpen]);
 
-  // Intenta cargar los proyectos de forma asíncrona, gestionando el estado de carga y los posibles errores.
   const loadProjects = async () => {
     try {
       setIsLoading(true);
       const response = await fetchProjects();
-      console.log("Proyectos cargados:", response.data);
       setProjects(response.data || []);
       setIsLoading(false);
     } catch (error) {
@@ -34,21 +34,17 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  // Desplaza la vista al final de la lista de mensajes cada vez que la lista se actualiza.
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Desplaza suavemente la vista hasta el elemento referenciado (último mensaje) para mantener el foco en los mensajes recientes.
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Cambia la visibilidad del asistente y, al abrirse, muestra un mensaje de bienvenida.
   const toggleAssistant = () => {
     setIsOpen(!isOpen);
     if (!isOpen) {
-      // Mensaje de bienvenida cuando se abre el asistente
       setMessages([
         { 
           role: 'assistant', 
@@ -58,7 +54,6 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  // Procesa el texto transcrito del audio, respondiendo con un mensaje de error si está vacío o en blanco.
   const handleTranscriptionComplete = async (text) => {
     if (!text || text.trim() === '') {
       setMessages(prevMessages => [
@@ -71,39 +66,33 @@ const VoiceAssistant = ({ onCreateTask }) => {
       return;
     }
     
-    // Agregar el mensaje del usuario a la conversación
     const userMessage = { role: 'user', content: text };
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsWaitingForResponse(true);
     
-    // Agregar un mensaje de "pensando" para mejorar la experiencia
-    const processingMessageId = Date.now().toString(); // Generamos un ID único para el mensaje
+    const processingMessageId = Date.now().toString();
     setMessages(prevMessages => [
       ...prevMessages, 
       { 
         id: processingMessageId,
         role: 'assistant', 
         content: 'Procesando tu solicitud...',
-        isTemporary: true // Bandera para reemplazar este mensaje después
+        isTemporary: true
       }
     ]);
     
     try {
-      // Usar el nuevo método que envía texto directamente
-      console.log("Enviando transcripción al backend:", text);
+      console.log("📡 Enviando transcripción al backend:", text);
       const response = await processVoiceText(text, 'assistance');
-      console.log("Respuesta recibida:", response.data);
+      console.log("✅ Respuesta recibida:", response.data);
       
-      // Eliminar el mensaje temporal usando su ID único
       setMessages(prevMessages => 
         prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
       );
       
-      // Verificar si la respuesta contiene una acción específica
       if (response.data && response.data.action) {
         handleActionResponse(response.data);
       } else {
-        // Si es solo una respuesta informativa
         setMessages(prevMessages => [
           ...prevMessages, 
           { 
@@ -113,19 +102,17 @@ const VoiceAssistant = ({ onCreateTask }) => {
         ]);
       }
     } catch (error) {
-      console.error('Error al procesar la transcripción:', error);
+      console.error('❌ Error al procesar transcripción:', error);
       
-      // Eliminar el mensaje temporal usando su ID único
       setMessages(prevMessages => 
         prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
       );
       
-      // Agregar mensaje de error detallado
       setMessages(prevMessages => [
         ...prevMessages, 
         { 
           role: 'assistant', 
-          content: `Lo siento, ocurrió un error: ${error.message || 'Error de conexión con el servidor'}. Por favor, inténtalo de nuevo.` 
+          content: `Lo siento, ocurrió un error: ${error.response?.data?.error || error.message}. Por favor, inténtalo de nuevo.` 
         }
       ]);
     } finally {
@@ -133,44 +120,47 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
   
-  // Añadir o actualizar la función handleActionResponse
   const handleActionResponse = (data) => {
     switch (data.action) {
       case 'createTask':
-        // Mostrar mensaje de confirmación con detalles de la tarea creada
+      case 'task_created':
         setMessages(prevMessages => [
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: data.message || `Tarea creada: "${data.taskDetails.title}" en el proyecto "${data.taskDetails.projectName || 'seleccionado'}"` 
+            content: data.message || `Tarea creada: "${data.taskDetails?.title || 'Nueva tarea'}"` 
           }
         ]);
         
-        // Actualizar los proyectos si es necesario
-        setRefreshTrigger(prev => prev + 1);
+        // 🔥 ACTUALIZAR PROYECTOS AUTOMÁTICAMENTE
+        console.log('🔄 Actualizando proyectos automáticamente...');
+        setTimeout(() => {
+          refreshProjects();
+        }, 500);
         break;
         
       case 'createProject':
-        // Mostrar mensaje de confirmación con detalles del proyecto creado
+      case 'project_created':
         setMessages(prevMessages => [
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: data.message || `He creado un nuevo proyecto llamado "${data.projectDetails.title}"` 
+            content: data.message || `Proyecto creado: "${data.projectDetails?.title || 'Nuevo proyecto'}"` 
           }
         ]);
         
-        // Actualizar la lista de proyectos
-        setRefreshTrigger(prev => prev + 1);
+        // 🔥 ACTUALIZAR PROYECTOS AUTOMÁTICAMENTE
+        console.log('🔄 Actualizando proyectos automáticamente...');
+        setTimeout(() => {
+          refreshProjects();
+        }, 500);
         break;
         
       case 'searchTasks':
-        // Manejar resultados de búsqueda
         handleSearchResults(data.searchResults || [], data.searchParams);
         break;
         
       case 'error':
-        // Manejar mensajes de error del backend
         setMessages(prevMessages => [
           ...prevMessages, 
           { 
@@ -181,7 +171,6 @@ const VoiceAssistant = ({ onCreateTask }) => {
         break;
         
       default:
-        // Para otras acciones no manejadas específicamente
         setMessages(prevMessages => [
           ...prevMessages, 
           { 
@@ -192,25 +181,20 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  // Gestiona la búsqueda de tareas, ya sea utilizando resultados preexistentes o realizando una nueva búsqueda basada en parámetros.  
   const handleSearchResults = async (searchResults, searchParams) => {
     try {
       let results = searchResults;
       
-      // Si no se pasaron resultados pero sí parámetros, intentar buscar
       if ((!results || results.length === 0) && searchParams) {
-        // Si tenemos projectId específico, buscar tareas de ese proyecto
         if (searchParams.projectId) {
           const response = await fetchTasksByProjectId(searchParams.projectId);
           results = filterTasks(response.data || [], searchParams);
         } else {
-          // Si no, buscar tareas en todos los proyectos
           const allTasks = [];
           
           for (const project of projects) {
             const response = await fetchTasksByProjectId(project.id);
             if (response.data && response.data.length > 0) {
-              // Añadir información del proyecto a cada tarea
               const tasksWithProject = response.data.map(task => ({
                 ...task,
                 projectName: project.title
@@ -223,7 +207,6 @@ const VoiceAssistant = ({ onCreateTask }) => {
         }
       }
       
-      // Mostrar resultados
       setMessages(prevMessages => [
         ...prevMessages, 
         { 
@@ -246,24 +229,20 @@ const VoiceAssistant = ({ onCreateTask }) => {
     }
   };
 
-  // Filtra una lista de tareas basándose en los parámetros de búsqueda proporcionados.
   const filterTasks = (tasks, searchParams) => {
     if (!searchParams) return tasks;
     
     return tasks.filter(task => {
-      // Filtrar por término de búsqueda (título o descripción)
       if (searchParams.searchTerm && 
           !task.title?.toLowerCase().includes(searchParams.searchTerm.toLowerCase()) &&
           !task.description?.toLowerCase().includes(searchParams.searchTerm.toLowerCase())) {
         return false;
       }
       
-      // Filtrar por estado
       if (searchParams.status && task.status !== searchParams.status) {
         return false;
       }
       
-      // Filtrar por fecha (si hay un rango especificado)
       if (searchParams.dateRange) {
         const taskDate = new Date(task.dueDate || task.completion_date);
         
@@ -282,36 +261,15 @@ const VoiceAssistant = ({ onCreateTask }) => {
     });
   };
 
-  // Envía el mensaje escrito por el usuario, procesándolo como si fuera una transcripción de voz y limpiando el input.
   const handleSendMessage = () => {
     if (inputMessage.trim() === '') return;
     
-    // Procesar el mensaje como si fuera una transcripción de voz
-    // Sin añadir el mensaje previamente
     handleTranscriptionComplete(inputMessage);
-    
-    // Limpiar el input
     setInputMessage('');
   };
 
-    // Este componente funcional representa la interfaz de un asistente virtual llamado "SmartTask".
-  // Incluye un botón flotante para abrir y cerrar la ventana del asistente, una cabecera con el título y un botón de cierre,
-  // un contenedor para mostrar la conversación entre el usuario y el asistente (mensajes), un área de entrada de texto con un botón de envío,
-  // un componente para la grabación de voz, y un indicador de carga que se muestra mientras se espera una respuesta del backend.
-  // La lógica para la interacción con el asistente (como el envío de mensajes de texto o voz, la recepción y visualización de respuestas,
-  // y la búsqueda de tareas) se maneja mediante los diversos 'handlers' y estados definidos en el componente funcional (no mostrados directamente en este fragmento).
-  // Los estilos visuales se definen en el objeto 'styles' y se aplican inline a los diferentes elementos del JSX.
-  // Cuando el asistente está abierto (isOpen es true), se renderiza la ventana principal con la conversación y los controles de entrada.
-  // La lista de mensajes se mapea para mostrar cada mensaje con su respectivo estilo (usuario o asistente),
-  // y si un mensaje del asistente contiene resultados de búsqueda, se renderiza una lista formateada de esas tareas.
-  // Un 'ref' (messagesEndRef) se utiliza para desplazar automáticamente la vista al último mensaje cuando la conversación se actualiza.
-  // El área de entrada permite al usuario escribir mensajes y enviarlos presionando Enter o haciendo clic en el botón de envío.
-  // El componente 'VoiceRecorder' (no mostrado aquí) se encarga de la funcionalidad de grabación y transcripción de voz.
-  // El indicador de carga se muestra condicionalmente cuando 'isWaitingForResponse' es true, proporcionando feedback visual al usuario durante el procesamiento.
-  // Finalmente, se definen estilos locales usando 'jsx' para una animación de "spin" en el indicador de carga.
   return (
     <div>
-      {/* Botón flotante para abrir/cerrar el asistente */}
       <button 
         className="assistant-toggle-button"
         onClick={toggleAssistant}
@@ -320,10 +278,8 @@ const VoiceAssistant = ({ onCreateTask }) => {
         <FaRobot style={{ fontSize: '24px' }} />
       </button>
       
-      {/* Ventana del asistente */}
       {isOpen && (
         <div className="assistant-window" style={styles.assistantWindow}>
-          {/* Cabecera del asistente */}
           <div className="assistant-header" style={styles.assistantHeader}>
             <div style={styles.assistantTitle}>
               <FaRobot style={{ marginRight: '8px' }} />
@@ -338,7 +294,6 @@ const VoiceAssistant = ({ onCreateTask }) => {
             </button>
           </div>
           
-          {/* Contenido de los mensajes */}
           <div className="messages-container" style={styles.messagesContainer}>
             {messages.map((message, index) => (
               <div 
@@ -348,7 +303,6 @@ const VoiceAssistant = ({ onCreateTask }) => {
               >
                 <div style={styles.messageContent}>{message.content}</div>
                 
-                {/* Mostrar resultados de búsqueda si existen */}
                 {message.searchResults && message.searchResults.length > 0 && (
                   <div style={styles.searchResults}>
                     <h4>Resultados de la búsqueda:</h4>
@@ -377,7 +331,6 @@ const VoiceAssistant = ({ onCreateTask }) => {
             <div ref={messagesEndRef} />
           </div>
           
-          {/* Área de entrada y botón de grabación */}
           <div className="input-container" style={styles.inputContainer}>
             <input
               type="text"
@@ -402,7 +355,6 @@ const VoiceAssistant = ({ onCreateTask }) => {
             </div>
           </div>
           
-          {/* Indicador de carga mientras se procesa la respuesta */}
           {isWaitingForResponse && (
             <div style={styles.loadingIndicator}>
               <FaSpinner style={{ animation: 'spin 1s linear infinite' }} />
@@ -420,6 +372,8 @@ const VoiceAssistant = ({ onCreateTask }) => {
     </div>
   );
 };
+
+// ... (estilos iguales)
 
 const styles = {
   toggleButton: {

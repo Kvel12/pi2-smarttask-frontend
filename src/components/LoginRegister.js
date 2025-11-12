@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Swal from 'sweetalert2';
+import { login, register } from '../api'; // ✅ Importar funciones
 import '../assets/login.css';
-import axios from 'axios';
 
 // Componente para el formulario de inicio de sesión
 const LoginForm = ({ username, password, setUsername, setPassword, handleSubmit }) => (
@@ -100,17 +100,18 @@ const LoginRegister = ({ onLogin }) => {
     }
 
     try {
-      // Usar URL absoluta al backend
-      const BACKEND_URL = 'https://smarttask-backend-tcsj.onrender.com/api';
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const data = isLogin ? { username, password } : { username, password, name };
+      const data = isLogin 
+        ? { username, password } 
+        : { username, password, name };
       
       console.log(`Intentando ${isLogin ? 'login' : 'registro'} con:`, data);
       
-      // Usar axios para la solicitud con URL absoluta
-      const response = await axios.post(BACKEND_URL + endpoint, data);
+      // ✅ Usar funciones de api.js
+      const response = isLogin 
+        ? await login(data)
+        : await register(data);
       
-      console.log('Respuesta:', response.data);
+      console.log('✅ Respuesta exitosa:', response.data);
       
       const token = response.data.token;
       if (token) {
@@ -122,17 +123,18 @@ const LoginRegister = ({ onLogin }) => {
           icon: 'success',
           title: isLogin ? 'Login Successful' : 'Registration Successful',
           text: isLogin ? 'Welcome back!' : 'Your account has been created!',
-          timer: 1500
+          timer: 1500,
+          showConfirmButton: false
         });
       } else {
         throw new Error('No token received from server');
       }
     } catch (error) {
-      console.error(`Error ${isLogin ? 'logging in' : 'registering'}`, error);
+      console.error(`❌ Error ${isLogin ? 'logging in' : 'registering'}:`, error);
       Swal.fire({
         icon: 'error',
         title: `Error ${isLogin ? 'logging in' : 'registering'}`,
-        text: error.response?.data?.message || error.message || 'An error occurred. Please try again.'
+        text: error.response?.data?.error || error.response?.data?.message || error.message || 'An error occurred. Please try again.'
       });
     }
   };
