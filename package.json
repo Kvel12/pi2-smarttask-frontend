@@ -20,7 +20,8 @@
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--openssl-legacy-provider REACT_APP_ENVIRONMENT=development react-scripts start",
     "dev": "cross-env NODE_OPTIONS=--openssl-legacy-provider REACT_APP_ENVIRONMENT=development react-scripts start",
-    "build": "cross-env NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
+    "build": "react-scripts build",
+    "build:dev": "cross-env NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -37,7 +38,6 @@
     ]
   },
   "engines": {
-    "node": "16.x || 18.x",
-    "npm": ">=8.0.0"
+    "node": ">=16.0.0"
   }
 }
