@@ -7,11 +7,36 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
   const [culminationDate, setCulminationDate] = useState('');
   const [priority, setPriority] = useState(initialData?.priority || 'medium');
 
+  // ✅ Función para normalizar fechas
+  const normalizeDateForInput = (dateString) => {
+    if (!dateString) return '';
+    
+    // Si ya está en formato YYYY-MM-DD, devolverlo tal cual
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      return dateString;
+    }
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.error('Error normalizing date:', error);
+      return '';
+    }
+  };
+
   useEffect(() => {
     if (initialData) {
       setTitle(initialData.title || '');
       setDescription(initialData.description || '');
-      setCulminationDate(initialData.culmination_date || '');
+      // ✅ NORMALIZAR la fecha al cargar
+      setCulminationDate(normalizeDateForInput(initialData.culmination_date));
       setPriority(initialData.priority || 'medium');
     }
   }, [initialData]);
@@ -28,6 +53,7 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
       culmination_date: culminationDate,
       priority,
     };
+    console.log('📤 Submitting project data:', formData);
     onSubmit(formData);
   };
 
@@ -68,14 +94,17 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
             id="culmination_date"
             name="culmination_date"
             value={culminationDate}
-            onChange={(e) => setCulminationDate(e.target.value)}
+            onChange={(e) => {
+              console.log('📅 Date changed to:', e.target.value);
+              setCulminationDate(e.target.value);
+            }}
           />
         </div>
         <div style={styles.formGroup}>
           <label style={styles.label}>Priority</label>
           <div style={styles.radioGroup}>
             <label
-              style={{ ...styles.radioLabel, color: '#dc3545' }} // Rojo para 'high'
+              style={{ ...styles.radioLabel, color: '#dc3545' }}
               className={priority === 'high' ? 'selected' : ''}
             >
               <input
@@ -86,7 +115,7 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
               High
             </label>
             <label
-              style={{ ...styles.radioLabel, color: '#ffc107' }} // Amarillo para 'medium'
+              style={{ ...styles.radioLabel, color: '#ffc107' }}
               className={priority === 'medium' ? 'selected' : ''}
             >
               <input
@@ -97,7 +126,7 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
               Medium
             </label>
             <label
-              style={{ ...styles.radioLabel, color: '#28a745' }} // Verde para 'low'
+              style={{ ...styles.radioLabel, color: '#28a745' }}
               className={priority === 'low' ? 'selected' : ''}
             >
               <input
@@ -179,7 +208,7 @@ const styles = {
     borderRadius: '5px',
     textTransform: 'uppercase',
     fontWeight: 'bold',
-    width: 'calc(50% - 10px)', // Ajustar el ancho para ocupar desde el lateral hasta el centro
+    width: 'calc(50% - 10px)',
   },
   cancelButton: {
     backgroundColor: '#dc3545',
@@ -190,7 +219,7 @@ const styles = {
     borderRadius: '5px',
     textTransform: 'uppercase',
     fontWeight: 'bold',
-    width: 'calc(50% - 10px)', // Ajustar el ancho para ocupar desde el lateral hasta el centro
+    width: 'calc(50% - 10px)',
   },
 };
 

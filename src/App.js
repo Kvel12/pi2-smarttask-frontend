@@ -5,6 +5,7 @@ import { fetchProjects } from './api';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import ProjectList from './components/ProjectList';
+import KanbanPage from './components/KanbanPage'; // ✅ NUEVO IMPORT
 import Swal from 'sweetalert2';
 
 // Al principio del archivo, después de los imports
@@ -176,12 +177,14 @@ function App() {
                     </div>
                   ) : activePage === 'dashboard' ? (
                     <Dashboard projects={projects} />
-                  ) : (
+                  ) : activePage === 'projects' ? (
                     <ProjectList 
                       projects={projects} 
                       onProjectUpdate={refreshProjects}
                     />
-                  )}
+                  ) : activePage === 'kanban' ? ( // ✅ NUEVO: Página Kanban
+                    <KanbanPage />
+                  ) : null}
                 </Layout>
               )}
             </Route>

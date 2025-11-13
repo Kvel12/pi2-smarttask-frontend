@@ -2,11 +2,27 @@ import React from 'react';
 import { FaClock, FaExclamationCircle, FaTrash, FaEdit } from 'react-icons/fa';
 
 const TaskList = ({ tasks, onEditTask, onDeleteTask }) => {
-  // Función para formatear fechas
+  // ✅ FUNCIÓN MEJORADA para formatear fechas
   const formatDate = (dateString) => {
     if (!dateString) return 'Not set';
-    const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date) ? date.toLocaleDateString() : 'Invalid Date';
+    
+    try {
+      // Manejar fechas en formato YYYY-MM-DD o ISO
+      const date = new Date(dateString);
+      
+      // Verificar si la fecha es válida
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      
+      // Formatear la fecha
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
   };
 
   // Función para obtener el estilo del estado
@@ -78,7 +94,9 @@ const TaskList = ({ tasks, onEditTask, onDeleteTask }) => {
               <div style={styles.taskMeta}>
                 <span style={styles.metaItem}>
                   <FaClock style={styles.metaIcon} /> 
-                  <span style={styles.metaLabel}>Due:</span> {formatDate(task.dueDate)}
+                  <span style={styles.metaLabel}>Due:</span> 
+                  {/* ✅ CORREGIDO: Usar completion_date del backend, con fallback a dueDate */}
+                  {formatDate(task.completion_date || task.dueDate)}
                 </span>
                 <span style={styles.metaItem}>
                   <FaExclamationCircle style={styles.metaIcon} /> 

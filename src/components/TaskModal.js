@@ -11,6 +11,26 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
   const [selectedTask, setSelectedTask] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ✅ FUNCIÓN HELPER para normalizar fechas del backend
+  const normalizeTaskDate = (dateString) => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      
+      // Formato YYYY-MM-DD para inputs type="date"
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.error('Error normalizing date:', error);
+      return '';
+    }
+  };
+
   useEffect(() => {
     if (isOpen && projectId) {
       setIsLoading(true);
@@ -19,7 +39,13 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
       fetchTasksByProjectId(projectId)
         .then(response => {
           console.log("Tasks fetched successfully:", response.data);
-          setTasks(response.data || []);
+          // ✅ NORMALIZAR fechas al cargar las tareas
+          const normalizedTasks = (response.data || []).map(task => ({
+            ...task,
+            completion_date: normalizeTaskDate(task.completion_date),
+            creation_date: task.creation_date
+          }));
+          setTasks(normalizedTasks);
           setIsLoading(false);
         })
         .catch(error => {
@@ -32,16 +58,15 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
 
   const handleCreateTask = async (taskData) => {
     try {
-      // Mapear los campos correctamente según lo que espera el backend
       const currentDate = new Date().toISOString();
       
       const formattedData = {
         title: taskData.title,
         description: taskData.description,
         status: taskData.status || 'pending',
-        creation_date: currentDate,        // Campo requerido por el backend
-        completion_date: taskData.dueDate, // El backend espera completion_date, no dueDate
-        projectId: projectId               // Usar projectId, no project_id
+        creation_date: currentDate,
+        completion_date: taskData.dueDate,
+        projectId: projectId
       };
 
       console.log('Sending task data to server:', formattedData);
@@ -49,7 +74,12 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
       const response = await createTask(formattedData);
       console.log('Task created successfully:', response.data);
       
-      const createdTask = response.data;
+      // ✅ NORMALIZAR la tarea creada antes de agregarla al estado
+      const createdTask = {
+        ...response.data,
+        completion_date: normalizeTaskDate(response.data.completion_date)
+      };
+      
       setTasks(prevTasks => [...prevTasks, createdTask]);
       
       if (onCreateTask) {
@@ -60,14 +90,12 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
     } catch (error) {
       console.error('Error creating task:', error);
       
-      // Información detallada del error para depuración
       if (error.response) {
         console.error('Error status:', error.response.status);
         console.error('Error data:', error.response.data);
         console.error('Error headers:', error.response.headers);
       }
       
-      // Mensaje de error más descriptivo
       let errorMessage = 'There was a problem creating the task.';
       if (error.response && error.response.data) {
         if (typeof error.response.data === 'string') {
@@ -85,16 +113,14 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
 
   const handleUpdateTask = async (taskData) => {
     try {
-      // Mismo mapeo para actualización
       const formattedData = {
         title: taskData.title,
         description: taskData.description,
         status: taskData.status || 'pending',
-        completion_date: taskData.dueDate,  // Mapear dueDate a completion_date
+        completion_date: taskData.dueDate,
         projectId: projectId
       };
 
-      // Solo incluir creation_date si se está actualizando
       if (taskData.creation_date) {
         formattedData.creation_date = taskData.creation_date;
       }
@@ -102,7 +128,12 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
       console.log('Updating task with data:', formattedData);
       
       const response = await updateTask(taskData.id, formattedData);
-      const updatedTaskFromServer = response.data;
+      
+      // ✅ NORMALIZAR la tarea actualizada
+      const updatedTaskFromServer = {
+        ...response.data,
+        completion_date: normalizeTaskDate(response.data.completion_date)
+      };
       
       const updatedTasks = tasks.map(task =>
         task.id === updatedTaskFromServer.id ? updatedTaskFromServer : task
@@ -119,13 +150,11 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
     } catch (error) {
       console.error('Error updating task:', error);
       
-      // Información detallada del error para depuración
       if (error.response) {
         console.error('Error status:', error.response.status);
         console.error('Error data:', error.response.data);
       }
       
-      // Mensaje de error más descriptivo
       let errorMessage = 'There was a problem updating the task.';
       if (error.response && error.response.data && error.response.data.message) {
         errorMessage = error.response.data.message;
@@ -164,7 +193,6 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         } catch (error) {
           console.error('Error deleting task:', error);
           
-          // Mensaje de error más descriptivo
           let errorMessage = 'There was a problem deleting the task.';
           if (error.response && error.response.data && error.response.data.message) {
             errorMessage = error.response.data.message;
@@ -177,10 +205,10 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
   };
 
   const handleEditTask = (task) => {
-    // Cuando editamos, debemos mapear los campos del backend al formato del formulario
+    // ✅ Mapear correctamente completion_date a dueDate para el formulario
     const taskForForm = {
       ...task,
-      dueDate: task.completion_date // Mapear completion_date a dueDate para el formulario
+      dueDate: task.completion_date || normalizeTaskDate(task.completion_date)
     };
     setSelectedTask(taskForForm);
   };

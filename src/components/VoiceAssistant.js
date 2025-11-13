@@ -90,73 +90,79 @@ const VoiceAssistant = ({ onCreateTask }) => {
   };
 
   const handleTranscriptionComplete = async (text) => {
-    if (!text || text.trim() === '') {
-      setMessages(prevMessages => [
-        ...prevMessages, 
-        { 
-          role: 'assistant', 
-          content: 'I couldn\'t understand the audio. Please try again speaking more clearly.' 
-        }
-      ]);
-      return;
-    }
-    
-    const userMessage = { role: 'user', content: text };
-    setMessages(prevMessages => [...prevMessages, userMessage]);
-    setIsWaitingForResponse(true);
-    
-    const processingMessageId = Date.now().toString();
+  if (!text || text.trim() === '') {
     setMessages(prevMessages => [
       ...prevMessages, 
       { 
-        id: processingMessageId,
         role: 'assistant', 
-        content: 'Processing your request...',
-        isTemporary: true
+        content: 'I couldn\'t understand the audio. Please try again speaking more clearly.' 
       }
     ]);
+    return;
+  }
+  
+  const userMessage = { role: 'user', content: text };
+  setMessages(prevMessages => [...prevMessages, userMessage]);
+  setIsWaitingForResponse(true);
+  
+  const processingMessageId = Date.now().toString();
+  setMessages(prevMessages => [
+    ...prevMessages, 
+    { 
+      id: processingMessageId,
+      role: 'assistant', 
+      content: 'Processing your request...',
+      isTemporary: true
+    }
+  ]);
+  
+  try {
+    console.log("📡 Sending transcription to backend:", text);
     
-    try {
-      console.log("📡 Sending transcription to backend:", text);
-      const response = await processVoiceText(text, 'assistance');
-      console.log("✅ Response received:", response.data);
-      
-      setMessages(prevMessages => 
-        prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
-      );
-      
-      if (response.data && response.data.action) {
-        handleActionResponse(response.data);
-      } else {
-        setMessages(prevMessages => [
-          ...prevMessages, 
-          { 
-            role: 'assistant', 
-            content: response.data.message || response.data.response || 'Sorry, I couldn\'t process your request.' 
-          }
-        ]);
-      }
-    } catch (error) {
-      console.error('❌ Error processing transcription:', error);
-      
-      setMessages(prevMessages => 
-        prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
-      );
-      
-      const errorMessage = error.response?.data?.error || error.message;
-      showErrorTooltip(`Error: ${errorMessage}`);
-      
+    // ✅ PRIMERO: Obtener la transcripción y el idioma detectado
+    // Ya viene del handleTranscriptionComplete del VoiceRecorder
+    // Si necesitas detectar el idioma aquí, puedes hacerlo:
+    const detectedLanguage = text.toLowerCase().includes('create') || 
+                            text.toLowerCase().includes('task') || 
+                            text.toLowerCase().includes('project') ? 'en' : 'es';
+    
+    // ✅ SEGUNDO: Procesar con el idioma detectado
+    const response = await processVoiceText(text, detectedLanguage, 'assistance');
+    console.log("✅ Response received:", response.data);
+    
+    setMessages(prevMessages => 
+      prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
+    );
+    
+    if (response.data && response.data.action) {
+      handleActionResponse(response.data);
+    } else {
       setMessages(prevMessages => [
         ...prevMessages, 
         { 
           role: 'assistant', 
-          content: `Sorry, an error occurred. Please try again.` 
+          content: response.data.message || response.data.response || 'Sorry, I couldn\'t process your request.' 
         }
       ]);
-    } finally {
-      setIsWaitingForResponse(false);
     }
-  };
+  } catch (error) {
+    console.error('❌ Error processing transcription:', error);
+    
+    setMessages(prevMessages => 
+      prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
+    );
+    
+    setMessages(prevMessages => [
+      ...prevMessages, 
+      { 
+        role: 'assistant', 
+        content: `Sorry, an error occurred: ${error.response?.data?.error || error.message}. Please try again.` 
+      }
+    ]);
+  } finally {
+    setIsWaitingForResponse(false);
+  }
+};
   
   const handleActionResponse = (data) => {
     switch (data.action) {
