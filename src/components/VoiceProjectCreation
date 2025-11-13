@@ -19,7 +19,7 @@ const VoiceProjectCreation = ({ onProjectCreated }) => {
         }}
         onClick={() => console.log("Voice Project Creation clicked")}
       >
-        <FaMicrophone style={{ marginRight: '8px' }} /> Crear proyecto por voz
+        <FaMicrophone style={{ marginRight: '8px' }} /> Create project by Voice
       </button>
     </div>
   );

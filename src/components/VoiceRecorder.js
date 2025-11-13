@@ -2,31 +2,28 @@ import React, { useState, useRef } from 'react';
 import { FaMicrophone, FaStop, FaSpinner } from 'react-icons/fa';
 import { convertSpeechToText } from '../api';
 
-const VoiceRecorder = ({ onTranscriptionComplete }) => {
+const VoiceRecorder = ({ onTranscriptionComplete, onError }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
-  // Iniciar grabación
   const startRecording = async () => {
-    setError(null);
     audioChunksRef.current = [];
     
     try {
-      console.log("🎤 Solicitando acceso al micrófono...");
+      console.log("🎤 Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           channelCount: 1,
-          sampleRate: 16000,
+          // ❌ NO especificar sampleRate - el navegador usa 48kHz por defecto
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         } 
       });
       
-      console.log("✅ Acceso al micrófono concedido");
+      console.log("✅ Microphone access granted");
       
       const recorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
@@ -35,45 +32,48 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          console.log(`📦 Audio chunk: ${event.data.size} bytes`);
         }
       };
       
       recorder.onstop = async () => {
-        console.log("🛑 Grabación detenida, procesando audio...");
+        console.log("🛑 Recording stopped, processing audio...");
         setIsProcessing(true);
         
         try {
           if (audioChunksRef.current.length === 0) {
-            throw new Error("No se capturaron datos de audio");
+            throw new Error("No audio data captured");
           }
           
           const audioBlob = new Blob(audioChunksRef.current, { 
             type: 'audio/webm;codecs=opus' 
           });
           
-          console.log(`📦 Audio blob creado: ${audioBlob.size} bytes`);
+          console.log(`📦 Audio blob created: ${audioBlob.size} bytes`);
           
-          // Enviar al BACKEND para transcripción
-          console.log("📡 Enviando audio al backend...");
+          console.log("📡 Sending audio to backend...");
           const response = await convertSpeechToText(audioBlob);
           const transcription = response.data.transcription;
           
-          console.log(`✅ Transcripción recibida: "${transcription}"`);
+          console.log(`✅ Transcription received: "${transcription}"`);
           
           if (transcription && onTranscriptionComplete) {
             onTranscriptionComplete(transcription);
           } else {
-            throw new Error("No se recibió transcripción del backend");
+            throw new Error("No transcription received from backend");
           }
           
         } catch (err) {
-          console.error('❌ Error al procesar audio:', err);
-          setError(err.response?.data?.error || err.message || 'Error al procesar el audio');
+          console.error('❌ Error processing audio:', err);
+          const errorMessage = err.response?.data?.error || err.response?.data?.details || err.message || 'Error processing audio';
+          console.error('Full error:', err.response?.data);
+          if (onError) {
+            onError(errorMessage);
+          }
         } finally {
           setIsProcessing(false);
           setIsRecording(false);
           
-          // Liberar el micrófono
           stream.getTracks().forEach(track => track.stop());
         }
       };
@@ -82,24 +82,25 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
       
-      console.log("▶️ Grabación iniciada");
+      console.log("▶️ Recording started");
     } catch (err) {
-      console.error('❌ Error al iniciar grabación:', err);
-      setError('No se pudo acceder al micrófono. Verifica los permisos.');
+      console.error('❌ Error starting recording:', err);
+      const errorMessage = 'Could not access microphone. Please check permissions.';
+      if (onError) {
+        onError(errorMessage);
+      }
       setIsRecording(false);
     }
   };
 
-  // Detener grabación
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      console.log("⏸️ Solicitando detener grabación...");
+      console.log("⏸️ Requesting to stop recording...");
       mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
     }
   };
 
-  // Toggle grabación
   const toggleRecording = () => {
     if (!isRecording) {
       startRecording();
@@ -114,21 +115,10 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
         style={isRecording ? {...styles.recordButton, ...styles.recordingButton} : styles.recordButton}
         onClick={toggleRecording}
         disabled={isProcessing}
-        title={isRecording ? "Detener grabación" : "Iniciar grabación"}
+        title={isRecording ? "Stop recording" : "Start recording"}
       >
-        {isRecording ? <FaStop /> : <FaMicrophone />}
+        {isProcessing ? <FaSpinner style={styles.spinner} /> : (isRecording ? <FaStop /> : <FaMicrophone />)}
       </button>
-      
-      {isProcessing && (
-        <div style={styles.processingIndicator}>
-          <FaSpinner style={styles.spinner} /> 
-          <span>Procesando audio...</span>
-        </div>
-      )}
-      
-      {error && (
-        <div style={styles.errorMessage}>{error}</div>
-      )}
       
       <style jsx>{`
         @keyframes pulse {
@@ -148,13 +138,11 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
 const styles = {
   voiceRecorder: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
-    margin: '10px 0',
   },
   recordButton: {
-    width: '50px',
-    height: '50px',
+    width: '40px',
+    height: '40px',
     borderRadius: '50%',
     border: 'none',
     background: '#f0f0f0',
@@ -164,7 +152,7 @@ const styles = {
     cursor: 'pointer',
     boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
     transition: 'all 0.3s ease',
-    fontSize: '20px',
+    fontSize: '18px',
     color: '#512da8',
   },
   recordingButton: {
@@ -172,23 +160,8 @@ const styles = {
     color: 'white',
     animation: 'pulse 1.5s infinite',
   },
-  processingIndicator: {
-    display: 'flex',
-    alignItems: 'center',
-    marginTop: '10px',
-    fontSize: '14px',
-    color: '#666',
-  },
   spinner: {
     animation: 'spin 1s linear infinite',
-    marginRight: '8px',
-  },
-  errorMessage: {
-    marginTop: '10px',
-    color: '#ff4c4c',
-    fontSize: '14px',
-    textAlign: 'center',
-    maxWidth: '300px',
   },
 };
 

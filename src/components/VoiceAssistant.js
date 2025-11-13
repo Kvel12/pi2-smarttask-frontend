@@ -1,26 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaMicrophone, FaStop, FaRobot, FaTimes, FaSpinner, FaArrowUp } from 'react-icons/fa';
+import { FaMicrophone, FaStop, FaRobot, FaTimes, FaSpinner, FaArrowUp, FaWindowMinimize } from 'react-icons/fa';
 import VoiceRecorder from './VoiceRecorder';
 import { processVoiceCommand, fetchProjects, fetchTasksByProjectId, processVoiceText } from '../api';
-import { useApp } from '../App'; // Importar el contexto
+import { useApp } from '../App';
 
 const VoiceAssistant = ({ onCreateTask }) => {
-  const { refreshProjects } = useApp(); // Obtener función de refresh
+  const { refreshProjects } = useApp();
   
   const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState([]);
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
+  const [errorTooltip, setErrorTooltip] = useState(null);
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Cargar proyectos al abrir
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isMinimized) {
       loadProjects();
     }
-  }, [isOpen]);
+  }, [isOpen, isMinimized]);
 
   const loadProjects = async () => {
     try {
@@ -29,7 +31,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
       setProjects(response.data || []);
       setIsLoading(false);
     } catch (error) {
-      console.error('Error al cargar proyectos:', error);
+      console.error('Error loading projects:', error);
       setIsLoading(false);
     }
   };
@@ -38,20 +40,53 @@ const VoiceAssistant = ({ onCreateTask }) => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputMessage]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+  };
+
+  const showErrorTooltip = (message) => {
+    setErrorTooltip(message);
+    setTimeout(() => {
+      setErrorTooltip(null);
+    }, 2000);
+  };
+
   const toggleAssistant = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) {
+    if (isOpen && !isMinimized) {
+      // Si está abierto y no minimizado, cerrar completamente (reiniciar contexto)
+      setIsOpen(false);
+      setMessages([]);
+      setInputMessage('');
+    } else if (isOpen && isMinimized) {
+      // Si está minimizado, restaurar
+      setIsMinimized(false);
+    } else {
+      // Si está cerrado, abrir con mensaje de bienvenida
+      setIsOpen(true);
+      setIsMinimized(false);
       setMessages([
         { 
           role: 'assistant', 
-          content: 'Hola, soy tu asistente virtual de SmartTask. Puedes pedirme información sobre tus proyectos y tareas o crear nuevas tareas usando tu voz. ¿En qué puedo ayudarte hoy?' 
+          content: 'Hello! I\'m your SmartTask virtual assistant. You can ask me about your projects and tasks, or create new ones using your voice. How can I help you today?' 
         }
       ]);
     }
+  };
+
+  const minimizeAssistant = () => {
+    setIsMinimized(true);
   };
 
   const handleTranscriptionComplete = async (text) => {
@@ -60,7 +95,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
         ...prevMessages, 
         { 
           role: 'assistant', 
-          content: 'No pude entender el audio. Por favor, intenta de nuevo hablando más claramente.' 
+          content: 'I couldn\'t understand the audio. Please try again speaking more clearly.' 
         }
       ]);
       return;
@@ -76,15 +111,15 @@ const VoiceAssistant = ({ onCreateTask }) => {
       { 
         id: processingMessageId,
         role: 'assistant', 
-        content: 'Procesando tu solicitud...',
+        content: 'Processing your request...',
         isTemporary: true
       }
     ]);
     
     try {
-      console.log("📡 Enviando transcripción al backend:", text);
+      console.log("📡 Sending transcription to backend:", text);
       const response = await processVoiceText(text, 'assistance');
-      console.log("✅ Respuesta recibida:", response.data);
+      console.log("✅ Response received:", response.data);
       
       setMessages(prevMessages => 
         prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
@@ -97,22 +132,25 @@ const VoiceAssistant = ({ onCreateTask }) => {
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: response.data.message || response.data.response || 'Lo siento, no pude procesar tu solicitud.' 
+            content: response.data.message || response.data.response || 'Sorry, I couldn\'t process your request.' 
           }
         ]);
       }
     } catch (error) {
-      console.error('❌ Error al procesar transcripción:', error);
+      console.error('❌ Error processing transcription:', error);
       
       setMessages(prevMessages => 
         prevMessages.filter(msg => !msg.isTemporary || msg.id !== processingMessageId)
       );
       
+      const errorMessage = error.response?.data?.error || error.message;
+      showErrorTooltip(`Error: ${errorMessage}`);
+      
       setMessages(prevMessages => [
         ...prevMessages, 
         { 
           role: 'assistant', 
-          content: `Lo siento, ocurrió un error: ${error.response?.data?.error || error.message}. Por favor, inténtalo de nuevo.` 
+          content: `Sorry, an error occurred. Please try again.` 
         }
       ]);
     } finally {
@@ -128,12 +166,11 @@ const VoiceAssistant = ({ onCreateTask }) => {
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: data.message || `Tarea creada: "${data.taskDetails?.title || 'Nueva tarea'}"` 
+            content: data.message || `Task created: "${data.taskDetails?.title || 'New task'}"` 
           }
         ]);
         
-        // 🔥 ACTUALIZAR PROYECTOS AUTOMÁTICAMENTE
-        console.log('🔄 Actualizando proyectos automáticamente...');
+        console.log('🔄 Refreshing projects automatically...');
         setTimeout(() => {
           refreshProjects();
         }, 500);
@@ -145,12 +182,11 @@ const VoiceAssistant = ({ onCreateTask }) => {
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: data.message || `Proyecto creado: "${data.projectDetails?.title || 'Nuevo proyecto'}"` 
+            content: data.message || `Project created: "${data.projectDetails?.title || 'New project'}"` 
           }
         ]);
         
-        // 🔥 ACTUALIZAR PROYECTOS AUTOMÁTICAMENTE
-        console.log('🔄 Actualizando proyectos automáticamente...');
+        console.log('🔄 Refreshing projects automatically...');
         setTimeout(() => {
           refreshProjects();
         }, 500);
@@ -165,7 +201,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: data.message || data.error || 'Ocurrió un error al procesar tu solicitud.' 
+            content: data.message || data.error || 'An error occurred while processing your request.' 
           }
         ]);
         break;
@@ -175,7 +211,7 @@ const VoiceAssistant = ({ onCreateTask }) => {
           ...prevMessages, 
           { 
             role: 'assistant', 
-            content: data.message || data.response || 'He procesado tu solicitud.' 
+            content: data.message || data.response || 'I\'ve processed your request.' 
           }
         ]);
     }
@@ -212,18 +248,19 @@ const VoiceAssistant = ({ onCreateTask }) => {
         { 
           role: 'assistant', 
           content: results.length > 0 
-            ? `Encontré ${results.length} tareas que coinciden con tu búsqueda.`
-            : 'No encontré tareas que coincidan con tu búsqueda.',
+            ? `I found ${results.length} task(s) matching your search.`
+            : 'I didn\'t find any tasks matching your search.',
           searchResults: results 
         }
       ]);
     } catch (error) {
-      console.error('Error al buscar tareas:', error);
+      console.error('Error searching tasks:', error);
+      showErrorTooltip('Error searching tasks');
       setMessages(prevMessages => [
         ...prevMessages, 
         { 
           role: 'assistant', 
-          content: 'Lo siento, ocurrió un error al buscar las tareas.' 
+          content: 'Sorry, an error occurred while searching for tasks.' 
         }
       ]);
     }
@@ -268,32 +305,59 @@ const VoiceAssistant = ({ onCreateTask }) => {
     setInputMessage('');
   };
 
+  const handleKeyPress = (e) => {
+    // Enviar con Enter, nueva línea con Shift+Enter
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   return (
     <div>
+      {/* Botón flotante */}
       <button 
         className="assistant-toggle-button"
         onClick={toggleAssistant}
         style={styles.toggleButton}
+        title={isMinimized ? "Restore Assistant" : "Open Assistant"}
       >
         <FaRobot style={{ fontSize: '24px' }} />
+        {messages.length > 1 && isMinimized && (
+          <span style={styles.badge}>{messages.length - 1}</span>
+        )}
       </button>
       
-      {isOpen && (
+      {/* Ventana del asistente */}
+      {isOpen && !isMinimized && (
         <div className="assistant-window" style={styles.assistantWindow}>
+          {/* Header */}
           <div className="assistant-header" style={styles.assistantHeader}>
             <div style={styles.assistantTitle}>
               <FaRobot style={{ marginRight: '8px' }} />
-              Asistente SmartTask
+              SmartTask Assistant
             </div>
-            <button 
-              className="close-button"
-              onClick={toggleAssistant}
-              style={styles.closeButton}
-            >
-              <FaTimes />
-            </button>
+            <div style={styles.headerButtons}>
+              <button 
+                className="minimize-button"
+                onClick={minimizeAssistant}
+                style={styles.headerButton}
+                title="Minimize (preserve context)"
+              >
+                <FaWindowMinimize />
+              </button>
+              <button 
+                className="close-button"
+                onClick={toggleAssistant}
+                style={styles.headerButton}
+                title="Close (clear conversation)"
+              >
+                <FaTimes />
+              </button>
+            </div>
           </div>
           
+          {/* Mensajes */}
           <div className="messages-container" style={styles.messagesContainer}>
             {messages.map((message, index) => (
               <div 
@@ -305,20 +369,20 @@ const VoiceAssistant = ({ onCreateTask }) => {
                 
                 {message.searchResults && message.searchResults.length > 0 && (
                   <div style={styles.searchResults}>
-                    <h4>Resultados de la búsqueda:</h4>
+                    <h4>Search Results:</h4>
                     <ul style={styles.resultsList}>
                       {message.searchResults.map((task, taskIndex) => (
                         <li key={taskIndex} style={styles.resultItem}>
                           <div style={styles.resultTitle}>{task.title}</div>
                           <div style={styles.resultDetails}>
-                            <span>Estado: {task.status === 'pending' ? 'Pendiente' :
-                                          task.status === 'in_progress' ? 'En progreso' :
-                                          task.status === 'completed' ? 'Completada' : 'Cancelada'}</span>
+                            <span>Status: {task.status === 'pending' ? 'Pending' :
+                                          task.status === 'in_progress' ? 'In Progress' :
+                                          task.status === 'completed' ? 'Completed' : 'Cancelled'}</span>
                             {task.projectName && (
-                              <span>Proyecto: {task.projectName}</span>
+                              <span>Project: {task.projectName}</span>
                             )}
                             {(task.dueDate || task.completion_date) && (
-                              <span>Fecha límite: {new Date(task.dueDate || task.completion_date).toLocaleDateString()}</span>
+                              <span>Due Date: {new Date(task.dueDate || task.completion_date).toLocaleDateString()}</span>
                             )}
                           </div>
                         </li>
@@ -331,33 +395,52 @@ const VoiceAssistant = ({ onCreateTask }) => {
             <div ref={messagesEndRef} />
           </div>
           
+          {/* Input Container */}
           <div className="input-container" style={styles.inputContainer}>
-            <input
-              type="text"
+            <textarea
+              ref={textareaRef}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Escribe un mensaje o usa el micrófono..."
-              style={styles.inputField}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              onKeyPress={handleKeyPress}
+              placeholder="Type a message or use the microphone... (Enter to send, Shift+Enter for new line)"
+              style={styles.textareaField}
+              rows={1}
             />
             
-            <button 
-              className="send-button"
-              onClick={handleSendMessage}
-              disabled={inputMessage.trim() === ''}
-              style={styles.sendButton}
-            >
-              <FaArrowUp />
-            </button>
-            
-            <div style={styles.recorderContainer}>
-              <VoiceRecorder onTranscriptionComplete={handleTranscriptionComplete} />
+            <div style={styles.buttonsContainer}>
+              <button 
+                className="send-button"
+                onClick={handleSendMessage}
+                disabled={inputMessage.trim() === ''}
+                style={{
+                  ...styles.sendButton,
+                  opacity: inputMessage.trim() === '' ? 0.5 : 1
+                }}
+                title="Send message"
+              >
+                <FaArrowUp />
+              </button>
+              
+              <div style={styles.recorderContainer}>
+                <VoiceRecorder 
+                  onTranscriptionComplete={handleTranscriptionComplete}
+                  onError={showErrorTooltip}
+                />
+              </div>
             </div>
           </div>
           
+          {/* Loading Indicator */}
           {isWaitingForResponse && (
             <div style={styles.loadingIndicator}>
               <FaSpinner style={{ animation: 'spin 1s linear infinite' }} />
+            </div>
+          )}
+          
+          {/* Error Tooltip */}
+          {errorTooltip && (
+            <div style={styles.errorTooltip}>
+              {errorTooltip}
             </div>
           )}
         </div>
@@ -368,12 +451,30 @@ const VoiceAssistant = ({ onCreateTask }) => {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes fadeOut {
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+          }
+        }
       `}</style>
     </div>
   );
 };
-
-// ... (estilos iguales)
 
 const styles = {
   toggleButton: {
@@ -391,7 +492,24 @@ const styles = {
     cursor: 'pointer',
     boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
     border: 'none',
-    zIndex: 1000
+    zIndex: 1000,
+    transition: 'all 0.3s ease',
+  },
+  badge: {
+    position: 'absolute',
+    top: '-5px',
+    right: '-5px',
+    backgroundColor: '#ff4444',
+    color: 'white',
+    borderRadius: '50%',
+    width: '24px',
+    height: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    border: '2px solid white',
   },
   assistantWindow: {
     position: 'fixed',
@@ -405,7 +523,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    zIndex: 1000
+    zIndex: 1000,
+    animation: 'slideIn 0.3s ease',
   },
   assistantHeader: {
     padding: '15px',
@@ -413,20 +532,29 @@ const styles = {
     color: 'white',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   assistantTitle: {
     display: 'flex',
     alignItems: 'center',
     fontWeight: 'bold',
-    fontSize: '16px'
+    fontSize: '16px',
   },
-  closeButton: {
+  headerButtons: {
+    display: 'flex',
+    gap: '10px',
+  },
+  headerButton: {
     background: 'none',
     border: 'none',
     color: 'white',
     cursor: 'pointer',
-    fontSize: '18px'
+    fontSize: '16px',
+    padding: '5px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'opacity 0.2s',
   },
   messagesContainer: {
     flex: 1,
@@ -434,39 +562,53 @@ const styles = {
     padding: '15px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px'
+    gap: '10px',
   },
   userMessage: {
     alignSelf: 'flex-end',
     backgroundColor: '#e3f2fd',
     borderRadius: '18px 18px 0 18px',
     padding: '10px 15px',
-    maxWidth: '80%'
+    maxWidth: '80%',
+    wordWrap: 'break-word',
   },
   assistantMessage: {
     alignSelf: 'flex-start',
     backgroundColor: '#f1f1f1',
     borderRadius: '18px 18px 18px 0',
     padding: '10px 15px',
-    maxWidth: '80%'
+    maxWidth: '80%',
+    wordWrap: 'break-word',
   },
   messageContent: {
-    wordBreak: 'break-word'
+    wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap',
   },
   inputContainer: {
     display: 'flex',
+    flexDirection: 'column',
     padding: '10px',
     borderTop: '1px solid #eee',
-    alignItems: 'center',
-    gap: '8px'
+    gap: '8px',
   },
-  inputField: {
-    flex: 1,
+  textareaField: {
+    width: '100%',
     padding: '12px 15px',
     border: '1px solid #ddd',
     borderRadius: '20px',
     outline: 'none',
-    fontSize: '14px'
+    fontSize: '14px',
+    resize: 'none',
+    fontFamily: 'inherit',
+    lineHeight: '1.5',
+    maxHeight: '120px',
+    overflowY: 'auto',
+  },
+  buttonsContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: '8px',
   },
   sendButton: {
     width: '40px',
@@ -478,11 +620,12 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     cursor: 'pointer',
-    border: 'none'
+    border: 'none',
+    transition: 'opacity 0.2s',
   },
   recorderContainer: {
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   loadingIndicator: {
     position: 'absolute',
@@ -495,35 +638,50 @@ const styles = {
     borderRadius: '8px',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  errorTooltip: {
+    position: 'absolute',
+    bottom: '80px',
+    right: '20px',
+    backgroundColor: '#ff4444',
+    color: 'white',
+    padding: '10px 15px',
+    borderRadius: '8px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+    fontSize: '14px',
+    maxWidth: '300px',
+    zIndex: 1001,
+    animation: 'slideIn 0.3s ease, fadeOut 0.3s ease 1.7s',
   },
   searchResults: {
     marginTop: '10px',
     backgroundColor: '#f9f9f9',
     borderRadius: '8px',
     padding: '10px',
-    fontSize: '13px'
+    fontSize: '13px',
   },
   resultsList: {
     listStyle: 'none',
     padding: '0',
-    margin: '5px 0 0 0'
+    margin: '5px 0 0 0',
   },
   resultItem: {
     padding: '8px',
     borderBottom: '1px solid #eee',
-    marginBottom: '5px'
+    marginBottom: '5px',
   },
   resultTitle: {
     fontWeight: 'bold',
-    marginBottom: '3px'
+    marginBottom: '3px',
   },
   resultDetails: {
     display: 'flex',
     flexDirection: 'column',
     fontSize: '12px',
-    color: '#666'
-  }
+    color: '#666',
+  },
 };
 
 export default VoiceAssistant;

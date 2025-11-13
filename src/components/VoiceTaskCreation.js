@@ -24,11 +24,11 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
           setSelectedProject(response.data[0].id);
         }
       } catch (error) {
-        console.error('Error al cargar proyectos:', error);
+        console.error('Error loading projects:', error);
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'No se pudieron cargar los proyectos'
+          text: 'The projects could not be loaded.'
         });
       }
     };
@@ -50,7 +50,7 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Debes seleccionar un proyecto antes de crear una tarea por voz'
+        text: 'You must select a project before creating a voice task'
       });
       return;
     }
@@ -75,15 +75,15 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: response.data?.error || 'No se pudo procesar el comando de voz'
+          text: response.data?.error || 'The voice command could not be processed'
         });
       }
     } catch (error) {
-      console.error('Error al procesar la transcripción:', error);
+      console.error('Error processing transcription:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Ocurrió un error al procesar la transcripción'
+        text: 'An error occurred while processing the transcript.'
       });
     } finally {
       setProcessing(false);
@@ -95,7 +95,7 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'El título de la tarea es obligatorio'
+        text: 'The assignment title is required'
       });
       return;
     }
@@ -104,7 +104,7 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Debes seleccionar un proyecto para la tarea'
+        text: 'You must select a project for the task'
       });
       return;
     }
@@ -127,8 +127,8 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
       
       Swal.fire({
         icon: 'success',
-        title: '¡Tarea creada!',
-        text: `La tarea "${taskDetails.title}" ha sido creada exitosamente`
+        title: 'Task created!',
+        text: `The task "${taskDetails.title}" has been successfully created`
       });
       
       // Resetear el formulario
@@ -141,11 +141,11 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
         onTaskCreated(response.data);
       }
     } catch (error) {
-      console.error('Error al crear la tarea:', error);
+      console.error('Error creating task:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: error.response?.data?.message || 'No se pudo crear la tarea'
+        text: error.response?.data?.message || 'The task could not be created'
       });
     } finally {
       setProcessing(false);
@@ -155,7 +155,7 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
   // Encontrar nombre del proyecto seleccionado
   const getSelectedProjectName = () => {
     const project = projects.find(p => p.id === selectedProject);
-    return project ? project.title : 'No seleccionado';
+    return project ? project.title : 'Not selected';
   };
 
   return (
@@ -165,24 +165,24 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
         onClick={() => setFormVisible(!formVisible)}
       >
         {formVisible 
-          ? "Cancelar creación por voz" 
-          : <><FaMicrophone style={styles.buttonIcon} /> Crear tarea por voz</>
+          ? "Cancel voice creation" 
+          : <><FaMicrophone style={styles.buttonIcon} /> Create task by voice</>
         }
       </button>
       
       {formVisible && (
         <div style={styles.formContainer}>
-          <h3 style={styles.title}>Crear tarea por voz</h3>
+          <h3 style={styles.title}>Create task by voice</h3>
           
           <div style={styles.projectSelection}>
-            <label style={styles.projectLabel}>Seleccionar proyecto:</label>
+            <label style={styles.projectLabel}>Select a project:</label>
             <select 
               style={styles.projectSelect}
               value={selectedProject || ''}
               onChange={(e) => setSelectedProject(Number(e.target.value))}
               disabled={processing}
             >
-              <option value="">Selecciona un proyecto</option>
+              <option value="">Select a project</option>
               {projects.map(project => (
                 <option key={project.id} value={project.id}>
                   {project.title}
@@ -192,9 +192,9 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
           </div>
           
           <p style={styles.instructions}>
-            Presiona el botón del micrófono y describe la tarea que deseas crear.
+            Press the microphone button and describe the task you want to create.
             <br />
-            <small>Ejemplo: "Crear una tarea llamada Implementar login con estado pendiente para el 10 de noviembre"</small>
+            <small>Example: "Create a task called Implement login with a pending status for November 10th"</small>
           </p>
           
           <div style={styles.recorderContainer}>
@@ -214,28 +214,28 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
           
           {taskDetails && (
             <div style={styles.detailsBox}>
-              <h4 style={styles.subtitle}>Detalles de la tarea:</h4>
+              <h4 style={styles.subtitle}>Task details:</h4>
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Título:</span>
+                <span style={styles.detailLabel}>Títle:</span>
                 <span style={styles.detailValue}>{taskDetails.title}</span>
               </div>
               
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Descripción:</span>
+                <span style={styles.detailLabel}>Description:</span>
                 <span style={styles.detailValue}>
-                  {taskDetails.description || 'No especificada'}
+                  {taskDetails.description || 'Not specified'}
                 </span>
               </div>
               
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Fecha límite:</span>
+                <span style={styles.detailLabel}>Due Date:</span>
                 <span style={styles.detailValue}>
-                  {taskDetails.completion_date || 'No especificada'}
+                  {taskDetails.completion_date || 'Not specified'}
                 </span>
               </div>
               
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Estado:</span>
+                <span style={styles.detailLabel}>State:</span>
                 <span style={styles.detailValue}>
                   {taskDetails.status === 'pending' ? 'Pendiente' :
                    taskDetails.status === 'in_progress' ? 'En progreso' :
@@ -244,7 +244,7 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
               </div>
               
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Proyecto:</span>
+                <span style={styles.detailLabel}>Project:</span>
                 <span style={styles.detailValue}>{getSelectedProjectName()}</span>
               </div>
               
@@ -254,7 +254,7 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
                   onClick={handleCreateTask}
                   disabled={processing}
                 >
-                  <FaPlus style={styles.buttonIcon} /> Crear tarea
+                  <FaPlus style={styles.buttonIcon} /> Create Task
                 </button>
                 <button 
                   style={styles.cancelButton}
@@ -264,7 +264,7 @@ const VoiceTaskCreation = ({ onTaskCreated, selectedProjectId = null }) => {
                   }}
                   disabled={processing}
                 >
-                  Cancelar
+                  Cancel
                 </button>
               </div>
             </div>
