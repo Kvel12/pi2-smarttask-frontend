@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
-import TaskList from './TaskList';
-import TaskForm from './TaskForm';
-import Modal from './Modal2';
-import { fetchTasksByProjectId, createTask, deleteTask, updateTask } from '../api';
+import { createTask, deleteTask, fetchTasksByProjectId, updateTask } from '../api';
 import taskImage from '../assets/tarea.png';
+import Modal from './Modal2';
+import TaskForm from './TaskForm';
+import TaskList from './TaskList';
 
 const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onDeleteTask }) => {
   const [tasks, setTasks] = useState([]);
@@ -14,16 +14,16 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
   // ✅ FUNCIÓN HELPER para normalizar fechas del backend
   const normalizeTaskDate = (dateString) => {
     if (!dateString) return '';
-    
+
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return '';
-      
+
       // Formato YYYY-MM-DD para inputs type="date"
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
-      
+
       return `${year}-${month}-${day}`;
     } catch (error) {
       console.error('Error normalizing date:', error);
@@ -35,7 +35,7 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
     if (isOpen && projectId) {
       setIsLoading(true);
       console.log(`Fetching tasks for project ID: ${projectId}`);
-      
+
       fetchTasksByProjectId(projectId)
         .then(response => {
           console.log("Tasks fetched successfully:", response.data);
@@ -59,7 +59,7 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
   const handleCreateTask = async (taskData) => {
     try {
       const currentDate = new Date().toISOString();
-      
+
       const formattedData = {
         title: taskData.title,
         description: taskData.description,
@@ -70,32 +70,32 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
       };
 
       console.log('Sending task data to server:', formattedData);
-      
+
       const response = await createTask(formattedData);
       console.log('Task created successfully:', response.data);
-      
+
       // ✅ NORMALIZAR la tarea creada antes de agregarla al estado
       const createdTask = {
         ...response.data,
         completion_date: normalizeTaskDate(response.data.completion_date)
       };
-      
+
       setTasks(prevTasks => [...prevTasks, createdTask]);
-      
+
       if (onCreateTask) {
         onCreateTask();
       }
-      
+
       Swal.fire('Created!', 'The task has been created successfully.', 'success');
     } catch (error) {
       console.error('Error creating task:', error);
-      
+
       if (error.response) {
         console.error('Error status:', error.response.status);
         console.error('Error data:', error.response.data);
         console.error('Error headers:', error.response.headers);
       }
-      
+
       let errorMessage = 'There was a problem creating the task.';
       if (error.response && error.response.data) {
         if (typeof error.response.data === 'string') {
@@ -106,7 +106,7 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
           errorMessage = `Validation error: ${error.response.data.errors[0].msg}`;
         }
       }
-      
+
       Swal.fire('Error', errorMessage, 'error');
     }
   };
@@ -126,40 +126,40 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
       }
 
       console.log('Updating task with data:', formattedData);
-      
+
       const response = await updateTask(taskData.id, formattedData);
-      
+
       // ✅ NORMALIZAR la tarea actualizada
       const updatedTaskFromServer = {
         ...response.data,
         completion_date: normalizeTaskDate(response.data.completion_date)
       };
-      
+
       const updatedTasks = tasks.map(task =>
         task.id === updatedTaskFromServer.id ? updatedTaskFromServer : task
       );
-      
+
       setTasks(updatedTasks);
-      
+
       if (onUpdateTask) {
         onUpdateTask();
       }
-      
+
       setSelectedTask(null);
       Swal.fire('Updated!', 'The task has been updated successfully.', 'success');
     } catch (error) {
       console.error('Error updating task:', error);
-      
+
       if (error.response) {
         console.error('Error status:', error.response.status);
         console.error('Error data:', error.response.data);
       }
-      
+
       let errorMessage = 'There was a problem updating the task.';
       if (error.response && error.response.data && error.response.data.message) {
         errorMessage = error.response.data.message;
       }
-      
+
       Swal.fire('Error', errorMessage, 'error');
     }
   };
@@ -180,11 +180,11 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
           await deleteTask(taskId);
           const updatedTasks = tasks.filter(task => task.id !== taskId);
           setTasks(updatedTasks);
-          
+
           if (onDeleteTask) {
             onDeleteTask();
           }
-          
+
           Swal.fire(
             'Deleted!',
             'The task has been deleted.',
@@ -192,12 +192,12 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
           );
         } catch (error) {
           console.error('Error deleting task:', error);
-          
+
           let errorMessage = 'There was a problem deleting the task.';
           if (error.response && error.response.data && error.response.data.message) {
             errorMessage = error.response.data.message;
           }
-          
+
           Swal.fire('Error', errorMessage, 'error');
         }
       }
@@ -223,6 +223,7 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         <div style={styles.leftColumn}>
           <h2 style={styles.title}>Task Form</h2>
           <TaskForm
+            projectId={projectId}
             onSubmit={selectedTask ? handleUpdateTask : handleCreateTask}
             initialData={selectedTask}
             onCancel={handleCancelEdit}
