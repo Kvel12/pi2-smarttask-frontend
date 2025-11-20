@@ -6,6 +6,7 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
   const [description, setDescription] = useState('');
   const [culminationDate, setCulminationDate] = useState('');
   const [priority, setPriority] = useState(initialData?.priority || 'medium');
+  const [members, setMembers] = useState([]);
 
   // ✅ Función para normalizar fechas
   const normalizeDateForInput = (dateString) => {
@@ -38,11 +39,30 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
       // ✅ NORMALIZAR la fecha al cargar
       setCulminationDate(normalizeDateForInput(initialData.culmination_date));
       setPriority(initialData.priority || 'medium');
+      setMembers(initialData.members || []);
     }
   }, [initialData]);
 
   const handlePriorityChange = (value) => {
     setPriority(value);
+  };
+
+  const handleMemberChange = (index, event) => {
+    const values = [...members];
+    values[index][event.target.name] = event.target.value;
+    setMembers(values);
+  };
+
+  const handleAddMember = () => {
+    if (members.length < 3) {
+      setMembers([...members, { name: '', email: '' }]);
+    }
+  };
+
+  const handleRemoveMember = (index) => {
+    const values = [...members];
+    values.splice(index, 1);
+    setMembers(values);
   };
 
   const handleSubmit = (e) => {
@@ -52,6 +72,7 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
       description,
       culmination_date: culminationDate,
       priority,
+      members,
     };
     console.log('📤 Submitting project data:', formData);
     onSubmit(formData);
@@ -138,6 +159,47 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
             </label>
           </div>
         </div>
+        <div style={styles.formGroup}>
+          <label style={styles.label}>Members</label>
+          {members.map((member, index) => (
+            <div key={index} style={styles.memberGroup}>
+              <input
+                style={styles.input}
+                type="text"
+                name="name"
+                value={member.name}
+                onChange={(event) => handleMemberChange(index, event)}
+                placeholder="Member name"
+              />
+              <input
+                style={styles.input}
+                type="email"
+                name="email"
+                value={member.email}
+                onChange={(event) => handleMemberChange(index, event)}
+                placeholder="Member email"
+              />
+              <button type="button" onClick={() => handleRemoveMember(index)} style={styles.removeButton}>
+                REMOVE
+              </button>
+            </div>
+          ))}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={handleAddMember}
+              style={members.length >= 3 ? { ...styles.addButton, ...styles.disabledButton } : styles.addButton}
+              disabled={members.length >= 3}
+            >
+              ADD MEMBER
+            </button>
+            {members.length >= 3 && (
+              <div style={styles.tooltip}>
+                You can only add a maximum of 3 members.
+              </div>
+            )}
+          </div>
+        </div>
         <div style={styles.buttonGroup}>
           <button type="submit" style={styles.addButton}>
             {initialData ? 'UPDATE' : 'ADD'}
@@ -221,6 +283,36 @@ const styles = {
     fontWeight: 'bold',
     width: 'calc(50% - 10px)',
   },
+  memberGroup: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '10px',
+  },
+  removeButton: {
+    backgroundColor: '#dc3545',
+    color: '#fff',
+    border: 'none',
+    padding: '10px 15px',
+    cursor: 'pointer',
+    borderRadius: '5px',
+    textTransform: 'uppercase',
+    fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+    cursor: 'not-allowed',
+  },
+  tooltip: {
+    position: 'absolute',
+    bottom: '100%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    backgroundColor: 'black',
+    color: 'white',
+    padding: '5px 10px',
+    borderRadius: '5px',
+    marginBottom: '5px',
+    whiteSpace: 'nowrap',
+  },
 };
-
 export default ProjectForm;
