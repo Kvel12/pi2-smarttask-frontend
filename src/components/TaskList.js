@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaClock, FaExclamationCircle, FaTrash, FaEdit } from 'react-icons/fa';
+import { FaClock, FaExclamationCircle, FaTrash, FaEdit, FaUser } from 'react-icons/fa';
 
 const TaskList = ({ tasks, onEditTask, onDeleteTask }) => {
   // ✅ FUNCIÓN MEJORADA para formatear fechas
@@ -7,8 +7,17 @@ const TaskList = ({ tasks, onEditTask, onDeleteTask }) => {
     if (!dateString) return 'Not set';
     
     try {
-      // Manejar fechas en formato YYYY-MM-DD o ISO
-      const date = new Date(dateString);
+      const parts = dateString.split('-');
+      // Ensure parts are valid numbers before parsing
+      if (parts.length !== 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+        return 'Invalid Date';
+      }
+
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+      const day = parseInt(parts[2], 10);
+
+      const date = new Date(year, month, day);
       
       // Verificar si la fecha es válida
       if (isNaN(date.getTime())) return 'Invalid Date';
@@ -103,6 +112,13 @@ const TaskList = ({ tasks, onEditTask, onDeleteTask }) => {
                   <span style={styles.metaLabel}>Status:</span> 
                   <span style={getStatusStyle(task.status)}>{formatStatus(task.status)}</span>
                 </span>
+                {task.assigned_member && (
+                  <span style={styles.metaItem}>
+                    <FaUser style={styles.metaIcon} />
+                    <span style={styles.metaLabel}>Assigned to:</span>
+                    {task.assigned_member}
+                  </span>
+                )}
               </div>
             </li>
           ))}
