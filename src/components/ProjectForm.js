@@ -98,6 +98,8 @@ const ProjectForm = ({ onSubmit, onClose, initialData }) => {
     const values = [...members];
     values.splice(index, 1);
     setMembers(values);
+  };
+
   const handleTemplateChange = (value) => {
     setKanbanTemplate(value);
   };
@@ -487,4 +489,5 @@ const styles = {
     whiteSpace: 'nowrap',
   },
 };
+
 export default ProjectForm;
