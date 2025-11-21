@@ -66,7 +66,8 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         status: taskData.status || 'pending',
         creation_date: currentDate,
         completion_date: taskData.dueDate,
-        projectId: projectId
+        projectId: projectId,
+        assigned_member: taskData.assigned_member,
       };
 
       console.log('Sending task data to server:', formattedData);
@@ -118,7 +119,8 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         description: taskData.description,
         status: taskData.status || 'pending',
         completion_date: taskData.dueDate,
-        projectId: projectId
+        projectId: projectId,
+        assigned_member: taskData.assigned_member,
       };
 
       if (taskData.creation_date) {
@@ -226,6 +228,7 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
             onSubmit={selectedTask ? handleUpdateTask : handleCreateTask}
             initialData={selectedTask}
             onCancel={handleCancelEdit}
+            projectId={projectId}
           />
         </div>
         <div style={styles.rightColumn}>
