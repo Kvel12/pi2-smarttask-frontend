@@ -20,9 +20,9 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
       if (isNaN(date.getTime())) return '';
 
       // Formato YYYY-MM-DD para inputs type="date"
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
 
       return `${year}-${month}-${day}`;
     } catch (error) {
@@ -66,7 +66,8 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         status: taskData.status || 'pending',
         creation_date: currentDate,
         completion_date: taskData.dueDate,
-        projectId: projectId
+        projectId: projectId,
+        assigned_member: taskData.assigned_member,
       };
 
       console.log('Sending task data to server:', formattedData);
@@ -118,7 +119,8 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
         description: taskData.description,
         status: taskData.status || 'pending',
         completion_date: taskData.dueDate,
-        projectId: projectId
+        projectId: projectId,
+        assigned_member: taskData.assigned_member,
       };
 
       if (taskData.creation_date) {
@@ -227,6 +229,7 @@ const TaskModal = ({ isOpen, onClose, projectId, onCreateTask, onUpdateTask, onD
             onSubmit={selectedTask ? handleUpdateTask : handleCreateTask}
             initialData={selectedTask}
             onCancel={handleCancelEdit}
+            projectId={projectId}
           />
         </div>
         <div style={styles.rightColumn}>

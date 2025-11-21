@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
+import { fetchProjectMembers } from '../api';
 import { fetchProjectStatuses } from '../api';
 
 const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
@@ -10,6 +11,26 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
     dueDate: '',
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [assignedMember, setAssignedMember] = useState('');
+
+  useEffect(() => {
+    if (projectId) {
+      fetchProjectMembers(projectId)
+        .then(response => {
+          setMembers(response.data);
+        })
+        .catch(error => {
+          console.error('Error fetching project members:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Could not fetch project members.',
+          });
+        });
+    }
+  }, [projectId]);
+  
   const [statuses, setStatuses] = useState([]);
   const [loadingStatuses, setLoadingStatuses] = useState(true);
 
@@ -43,6 +64,11 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
     if (initialData) {
       setTaskData(initialData);
       setIsEditing(true);
+      if (initialData.assigned_member) {
+        setAssignedMember(initialData.assigned_member);
+      } else {
+        setAssignedMember('');
+      }
     } else if (statuses.length > 0) {
       setTaskData({
         title: '',
@@ -51,6 +77,7 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
         dueDate: '',
       });
       setIsEditing(false);
+      setAssignedMember('');
     }
   }, [initialData, statuses]);
 
@@ -59,10 +86,13 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
     setTaskData((prevData) => ({ ...prevData, [name]: value }));
   };
 
+  const handleMemberChange = (e) => {
+    setAssignedMember(e.target.value);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validación de campos
     if (!taskData.title || !taskData.description || !taskData.dueDate) {
       Swal.fire({
         icon: 'error',
@@ -72,9 +102,13 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
       return;
     }
 
-    onSubmit(taskData);
+    const finalTaskData = {
+      ...taskData,
+      assigned_member: assignedMember,
+    };
 
-    // Limpiar el formulario después de enviar si no está en modo de edición
+    onSubmit(finalTaskData);
+
     if (!isEditing) {
       setTaskData({
         title: '',
@@ -82,6 +116,7 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
         status: 'pending',
         dueDate: '',
       });
+      setAssignedMember('');
     }
   };
 
@@ -145,6 +180,23 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
           onChange={handleChange}
           required
         />
+      </div>
+      <div style={styles.field}>
+        <label style={styles.label} htmlFor="assignedMember">Assign Member</label>
+        <select
+            style={styles.input}
+            id="assignedMember"
+            name="assignedMember"
+            value={assignedMember}
+            onChange={handleMemberChange}
+        >
+            <option value="">Unassigned</option>
+            {members.map(member => (
+                <option key={member.id} value={member.email}>
+                    {member.name} ({member.email})
+                </option>
+            ))}
+        </select>
       </div>
       <div style={styles.actions}>
         <button type="submit" style={styles.addButton}>

@@ -67,6 +67,7 @@ export const deleteProject = (projectId) => axios.delete(`${API_URL}/projects/${
 export const fetchProjectById = (projectId) => axios.get(`${API_URL}/projects/${projectId}`);
 export const updateProject = (projectId, project) => axios.put(`${API_URL}/projects/${projectId}`, project);
 export const fetchAllProjectIds = () => axios.get(`${API_URL}/projects/all-ids`);
+export const fetchProjectMembers = (projectId) => axios.get(`${API_URL}/projects/${projectId}/members`);
 export const fetchProjectStatuses = (projectId) => axios.get(`${API_URL}/projects/${projectId}/statuses`);
 
 // Funciones para tareas
