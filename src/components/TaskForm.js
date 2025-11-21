@@ -30,6 +30,7 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
         });
     }
   }, [projectId]);
+  
   const [statuses, setStatuses] = useState([]);
   const [loadingStatuses, setLoadingStatuses] = useState(true);
 
@@ -68,7 +69,6 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
       } else {
         setAssignedMember('');
       }
-    } else {
     } else if (statuses.length > 0) {
       setTaskData({
         title: '',
