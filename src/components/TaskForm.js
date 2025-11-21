@@ -32,12 +32,7 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
 
   useEffect(() => {
     if (initialData) {
-      setTaskData({
-        title: initialData.title || '',
-        description: initialData.description || '',
-        status: initialData.status || 'pending',
-        dueDate: initialData.dueDate ? new Date(initialData.dueDate).toISOString().split('T')[0] : '',
-      });
+      setTaskData(initialData);
       setIsEditing(true);
       if (initialData.assigned_member) {
         setAssignedMember(initialData.assigned_member);
