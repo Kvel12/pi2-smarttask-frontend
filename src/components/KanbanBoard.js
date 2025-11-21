@@ -14,10 +14,21 @@ import { updateTask } from '../api';
 import Swal from 'sweetalert2';
 import { useApp } from '../App';
 
-const KanbanBoard = ({ projectId, tasks }) => {
+const KanbanBoard = ({ projectId, tasks, kanbanColumns }) => {
   const { refreshProjects } = useApp();
   const [activeTask, setActiveTask] = useState(null);
   const [localTasks, setLocalTasks] = useState(tasks);
+
+  // Columnas por defecto (fallback si no se especifican columnas personalizadas)
+  const defaultColumns = [
+    { id: 'pending', title: 'Pending', color: '#ffc107', icon: '📋' },
+    { id: 'in_progress', title: 'In Progress', color: '#007bff', icon: '🔄' },
+    { id: 'completed', title: 'Completed', color: '#28a745', icon: '✅' },
+    { id: 'cancelled', title: 'Cancelled', color: '#6c757d', icon: '❌' }
+  ];
+
+  // Usar columnas personalizadas si existen, sino usar las por defecto
+  const columns = kanbanColumns && kanbanColumns.length > 0 ? kanbanColumns : defaultColumns;
 
   // Actualizar tareas locales cuando cambian las props
   useEffect(() => {
@@ -32,44 +43,17 @@ const KanbanBoard = ({ projectId, tasks }) => {
     })
   );
 
-  // Organizar tareas por estado
-  const tasksByStatus = {
-    pending: localTasks.filter(t => t.status === 'pending'),
-    in_progress: localTasks.filter(t => t.status === 'in_progress'),
-    completed: localTasks.filter(t => t.status === 'completed'),
-    cancelled: localTasks.filter(t => t.status === 'cancelled'),
-  };
+  // Organizar tareas por estado (dinámico según las columnas disponibles)
+  const tasksByStatus = {};
+  columns.forEach(column => {
+    tasksByStatus[column.id] = localTasks.filter(t => t.status === column.id);
+  });
 
-  const columns = [
-    { 
-      id: 'pending', 
-      title: 'Pending', 
-      color: '#ffc107', 
-      icon: '📋',
-      tasks: tasksByStatus.pending 
-    },
-    { 
-      id: 'in_progress', 
-      title: 'In Progress', 
-      color: '#007bff', 
-      icon: '🔄',
-      tasks: tasksByStatus.in_progress 
-    },
-    { 
-      id: 'completed', 
-      title: 'Completed', 
-      color: '#28a745', 
-      icon: '✅',
-      tasks: tasksByStatus.completed 
-    },
-    { 
-      id: 'cancelled', 
-      title: 'Cancelled', 
-      color: '#6c757d', 
-      icon: '❌',
-      tasks: tasksByStatus.cancelled 
-    },
-  ];
+  // Crear el array de columnas con sus tareas
+  const columnsWithTasks = columns.map(column => ({
+    ...column,
+    tasks: tasksByStatus[column.id] || []
+  }));
 
   const handleDragStart = (event) => {
     const { active } = event;
@@ -94,6 +78,13 @@ const KanbanBoard = ({ projectId, tasks }) => {
 
     // Si el estado no cambió, no hacer nada
     if (task.status === newStatus) return;
+
+    // Verificar que el nuevo estado sea válido (existe en las columnas)
+    const validStatus = columns.find(col => col.id === newStatus);
+    if (!validStatus) {
+      console.error('Invalid status:', newStatus);
+      return;
+    }
 
     // Actualizar localmente de inmediato para feedback visual
     const updatedTasks = localTasks.map(t =>
@@ -121,7 +112,7 @@ const KanbanBoard = ({ projectId, tasks }) => {
       Swal.fire({
         icon: 'success',
         title: 'Task Updated!',
-        text: `Task moved to ${newStatus.replace('_', ' ')}`,
+        text: `Task moved to ${validStatus.title}`,
         timer: 1500,
         showConfirmButton: false,
         toast: true,
@@ -162,7 +153,7 @@ const KanbanBoard = ({ projectId, tasks }) => {
         onDragEnd={handleDragEnd}
       >
         <div style={styles.columnsContainer}>
-          {columns.map(column => (
+          {columnsWithTasks.map(column => (
             <KanbanColumn
               key={column.id}
               id={column.id}

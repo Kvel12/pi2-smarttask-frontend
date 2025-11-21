@@ -6,14 +6,14 @@ const getApiUrl = () => {
     console.log('✅ Usando REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
     return process.env.REACT_APP_API_URL;
   }
-  
+
   const hostname = window.location.hostname;
-  
+
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     console.log('✅ Detectado localhost, usando backend local');
     return 'http://localhost:5500/api';
   }
-  
+
   console.log('✅ Detectado producción, usando backend de Render');
   return 'https://smarttask-backend-tcsj.onrender.com/api';
 };
@@ -32,11 +32,11 @@ axios.interceptors.request.use(
     if (token) {
       config.headers['x-auth-token'] = token;
     }
-    
+
     if (process.env.REACT_APP_ENVIRONMENT === 'development') {
       console.log('📡 Request a:', config.url);
     }
-    
+
     return config;
   },
   (error) => {
@@ -68,6 +68,7 @@ export const fetchProjectById = (projectId) => axios.get(`${API_URL}/projects/${
 export const updateProject = (projectId, project) => axios.put(`${API_URL}/projects/${projectId}`, project);
 export const fetchAllProjectIds = () => axios.get(`${API_URL}/projects/all-ids`);
 export const fetchProjectMembers = (projectId) => axios.get(`${API_URL}/projects/${projectId}/members`);
+export const fetchProjectStatuses = (projectId) => axios.get(`${API_URL}/projects/${projectId}/statuses`);
 
 // Funciones para tareas
 export const fetchTasks = (projectId) => axios.get(`${API_URL}/tasks/project/${projectId}`);
@@ -81,7 +82,7 @@ export const fetchTasksByProjectId = (projectId) => axios.get(`${API_URL}/tasks/
 export const convertSpeechToText = (audioBlob) => {
   const formData = new FormData();
   formData.append('audio', audioBlob, 'audio.webm');
-  
+
   return axios.post(`${API_URL}/speech/speech-to-text`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',

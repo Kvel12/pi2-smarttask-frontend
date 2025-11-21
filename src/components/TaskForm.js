@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
 import { fetchProjectMembers } from '../api';
+import { fetchProjectStatuses } from '../api';
 
 const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
   const [taskData, setTaskData] = useState({
     title: '',
     description: '',
-    status: 'pending',
+    status: '',
     dueDate: '',
   });
   const [isEditing, setIsEditing] = useState(false);
@@ -29,6 +30,34 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
         });
     }
   }, [projectId]);
+  const [statuses, setStatuses] = useState([]);
+  const [loadingStatuses, setLoadingStatuses] = useState(true);
+
+  // Fetch available statuses from the project
+  useEffect(() => {
+    if (projectId) {
+      setLoadingStatuses(true);
+      fetchProjectStatuses(projectId)
+        .then(response => {
+          const projectStatuses = response.data.statuses || [];
+          setStatuses(projectStatuses);
+
+          // Set default status to first column if not editing
+          if (!initialData && projectStatuses.length > 0) {
+            setTaskData(prev => ({
+              ...prev,
+              status: projectStatuses[0].id
+            }));
+          }
+          setLoadingStatuses(false);
+        })
+        .catch(error => {
+          console.error('Error fetching statuses:', error);
+          setLoadingStatuses(false);
+          Swal.fire('Error', 'Could not load statuses for this project.', 'error');
+        });
+    }
+  }, [projectId, initialData]);
 
   useEffect(() => {
     if (initialData) {
@@ -40,16 +69,17 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
         setAssignedMember('');
       }
     } else {
+    } else if (statuses.length > 0) {
       setTaskData({
         title: '',
         description: '',
-        status: 'pending',
+        status: statuses[0].id,
         dueDate: '',
       });
       setIsEditing(false);
       setAssignedMember('');
     }
-  }, [initialData]);
+  }, [initialData, statuses]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -118,49 +148,26 @@ const TaskForm = ({ onSubmit, initialData, onCancel, projectId }) => {
         />
       </div>
       <div style={styles.field}>
-        <label style={styles.label}>Status</label>
-        <div style={styles.radioGroup}>
-          <label style={styles.radioLabel}>
-            <input
-              type="radio"
-              name="status"
-              value="in_progress"
-              checked={taskData.status === 'in_progress'}
-              onChange={handleChange}
-            />
-            In Progress
-          </label>
-          <label style={styles.radioLabel}>
-            <input
-              type="radio"
-              name="status"
-              value="completed"
-              checked={taskData.status === 'completed'}
-              onChange={handleChange}
-            />
-            Completed
-          </label>
-          <label style={styles.radioLabel}>
-            <input
-              type="radio"
-              name="status"
-              value="pending"
-              checked={taskData.status === 'pending'}
-              onChange={handleChange}
-            />
-            Pending
-          </label>
-          <label style={styles.radioLabel}>
-            <input
-              type="radio"
-              name="status"
-              value="cancelled"
-              checked={taskData.status === 'cancelled'}
-              onChange={handleChange}
-            />
-            Cancelled
-          </label>
-        </div>
+        <label style={styles.label} htmlFor="status">Status</label>
+        {loadingStatuses ? (
+          <p>Loading statuses...</p>
+        ) : (
+          <select
+            style={styles.select}
+            id="status"
+            name="status"
+            value={taskData.status}
+            onChange={handleChange}
+            required
+          >
+            <option value="">Select status</option>
+            {statuses.map(status => (
+              <option key={status.id} value={status.id}>
+                {status.icon} {status.title}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       <div style={styles.field}>
         <label style={styles.label} htmlFor="dueDate">Due Date</label>
@@ -222,6 +229,15 @@ const styles = {
     width: '100%',
     marginBottom: '10px',
     fontSize: '16px',
+  },
+  select: {
+    border: '1px solid #ccc',
+    padding: '10px',
+    width: '100%',
+    marginBottom: '10px',
+    fontSize: '16px',
+    borderRadius: '4px',
+    backgroundColor: '#fff',
   },
   textarea: {
     border: '1px solid #ccc',

@@ -11,6 +11,37 @@ const KanbanPage = () => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Definición de plantillas (debe coincidir con ProjectForm)
+  const kanbanTemplates = {
+    default: {
+      name: 'Default',
+      columns: [
+        { id: 'pending', title: 'Pending', color: '#ffc107', icon: '📋' },
+        { id: 'in_progress', title: 'In Progress', color: '#007bff', icon: '🔄' },
+        { id: 'completed', title: 'Completed', color: '#28a745', icon: '✅' },
+        { id: 'cancelled', title: 'Cancelled', color: '#6c757d', icon: '❌' }
+      ]
+    },
+    architecture: {
+      name: 'Architecture',
+      columns: [
+        { id: 'requirements', title: 'Requerimientos', color: '#e91e63', icon: '📝' },
+        { id: 'design', title: 'Diseño', color: '#9c27b0', icon: '🎨' },
+        { id: 'construction', title: 'Construcción', color: '#2196f3', icon: '🏗️' },
+        { id: 'validation', title: 'Validación', color: '#4caf50', icon: '✔️' }
+      ]
+    },
+    systems_engineering: {
+      name: 'Systems Engineering',
+      columns: [
+        { id: 'todo', title: 'Por hacer', color: '#ff9800', icon: '📌' },
+        { id: 'in_progress', title: 'En progreso', color: '#03a9f4', icon: '⚙️' },
+        { id: 'review', title: 'En revisión', color: '#ff5722', icon: '🔍' },
+        { id: 'completed', title: 'Completado', color: '#8bc34a', icon: '✅' }
+      ]
+    }
+  };
+
   // Seleccionar el primer proyecto por defecto
   useEffect(() => {
     if (projects && projects.length > 0 && !selectedProjectId) {
@@ -63,6 +94,26 @@ const KanbanPage = () => {
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
+  // Obtener columnas del proyecto seleccionado
+  const getProjectColumns = () => {
+    if (!selectedProject) return kanbanTemplates.default.columns;
+    
+    // Si el proyecto tiene columnas guardadas, usarlas
+    if (selectedProject.kanban_columns && selectedProject.kanban_columns.length > 0) {
+      return selectedProject.kanban_columns;
+    }
+    
+    // Si tiene una plantilla especificada, usar esa
+    if (selectedProject.kanban_template && kanbanTemplates[selectedProject.kanban_template]) {
+      return kanbanTemplates[selectedProject.kanban_template].columns;
+    }
+    
+    // Por defecto, usar las columnas estándar
+    return kanbanTemplates.default.columns;
+  };
+
+  const currentColumns = getProjectColumns();
+
   return (
     <div style={styles.container}>
       {/* Header con selector de proyecto */}
@@ -99,6 +150,15 @@ const KanbanPage = () => {
             {selectedProject.description && (
               <p style={styles.projectDescription}>{selectedProject.description}</p>
             )}
+            {/* Mostrar plantilla utilizada */}
+            {selectedProject.kanban_template && (
+              <div style={styles.templateBadge}>
+                <span style={styles.templateIcon}>📋</span>
+                <span style={styles.templateText}>
+                  Template: {kanbanTemplates[selectedProject.kanban_template]?.name || 'Custom'}
+                </span>
+              </div>
+            )}
           </div>
           <div style={styles.projectStats}>
             <div style={styles.stat}>
@@ -114,6 +174,10 @@ const KanbanPage = () => {
               <span style={styles.statLabel}>Total Tasks:</span>
               <span style={styles.statValue}>{tasks.length}</span>
             </div>
+            <div style={styles.stat}>
+              <span style={styles.statLabel}>Columns:</span>
+              <span style={styles.statValue}>{currentColumns.length}</span>
+            </div>
           </div>
         </div>
       )}
@@ -125,7 +189,11 @@ const KanbanPage = () => {
           <p>Loading tasks...</p>
         </div>
       ) : (
-        <KanbanBoard projectId={selectedProjectId} tasks={tasks} />
+        <KanbanBoard 
+          projectId={selectedProjectId} 
+          tasks={tasks} 
+          kanbanColumns={currentColumns}
+        />
       )}
     </div>
   );
@@ -202,10 +270,27 @@ const styles = {
     color: '#512da8',
   },
   projectDescription: {
-    margin: 0,
+    margin: '0 0 10px 0',
     fontSize: '14px',
     color: '#666',
     lineHeight: '1.5',
+  },
+  templateBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    backgroundColor: '#f3e5f5',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    marginTop: '8px',
+  },
+  templateIcon: {
+    fontSize: '14px',
+  },
+  templateText: {
+    fontSize: '13px',
+    color: '#512da8',
+    fontWeight: '600',
   },
   projectStats: {
     display: 'flex',
